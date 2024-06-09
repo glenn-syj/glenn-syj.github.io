@@ -9,7 +9,7 @@ layout: default
 
   {{ content }}
 
-  {%- assign all_posts = site.en | concat: site.ko -%}
+  {%- assign all_posts = site.ko | sort: 'date' | reverse -%}
   {%- if all_posts.size > 0 -%}
   <h2 class="post-list-heading">{{ page.list_title | default: "Posts" }}</h2>
   <ul class="post-list">
