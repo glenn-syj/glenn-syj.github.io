@@ -105,7 +105,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("https://localhost:5173") // 허용할 출처
+                .allowedOrigins("http://localhost:5173") // 허용할 출처
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
@@ -151,7 +151,7 @@ let socket;
 
 const connect = () => {
   if (!socket) {
-    socket = new SockJS('https://localhost:443/gs-guide-websocket'); // SockJS 객체를 한 번만 생성
+    socket = new SockJS('http://localhost:8080/gs-guide-websocket'); // SockJS 객체를 한 번만 생성
   }
   stompClient = new StompJsClient({
     webSocketFactory: () => socket,
