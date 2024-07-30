@@ -18,7 +18,7 @@ layout: post
 
 ## 문제 상황
 
-### 로그인 기능 테스트 코드 작성 시 오류
+### 테스트 코드가 왜 UserDetailsService를 이용할까?
 
 이번 SSAFY 프로젝트에서는 TDD(Test Driven Development)까지는 아니더라도, JUnit과 Mockito를 이용해 테스트 코드를 주의를 기울여 작성해보고 싶었습니다. 특히, 단위 테스트를 이용해 개별 기능으로부터 얼마나 책임이 잘 분리되어 있는지도 고민해보고 싶었는데요. Spring Security의 넓은 의존성을 관리하거나 관련된 설정을 적용하는 것은 다른 글로 쓰고, 이번 글에서는 다음 예외에서 출발합니다.
 
@@ -26,7 +26,7 @@ layout: post
 
 이 예외는 Spring Security 내에서 제공되는 UserDetailsService 클래스에서 `loadUserByUserName()`을 통해 유저 정보를 찾지 못했을 때 던져집니다. 하지만 제 경우에는 유저 정보를 찾지 못했기 때문이 아니라, 따로 만든 CustomUserDetailsService를 이용하지 않고 있다는 점이 문제적이었습니다.
 
-Spring Security를 이제 막 시작하시는 분이라면, 아래 살펴보기를 읽고 가셔도 좋겠습니다.
+깊게 들어가기 전에! Spring Security를 이제 막 시작하시는 분이라면, 아래 살펴보기를 읽고 가셔도 좋겠습니다.
 
 ### 살펴보기: CustomUserService에 대해서
 
@@ -63,6 +63,44 @@ public String getUsername() {
 
 그리고 CustomUserDetailsService에서 오버라이드된 `loadUserByUsername()` 메서드는 `MemberRepository`에서 email로 Member 엔티티를 조회합니다.
 
+## 문제 해결
+
+### Spring Security 6에서의 설정 (1): 코드 뜯어보기
+
+당연하게도, 가장 먼저 의심이 되는 쪽은 Spring Security 설정 관련 코드가 있는 `SecurityConfig.java` 파일이었습니다. 팀에 합류하기 전 기존에 작성되어 있던 코드 사이에서는 당연히 설정이 완벽하게 되어 있겠지, 하고 주의를 덜 기울였던 저를 반성하게 되었습니다. 실제로 `CustomUserDetailsService`는 전혀 이용되고 있지 않았습니다.
+
+주목해야 하는 컴포넌트는 `AuthenticationManager` 인터페이스 구현체입니다. `AuthenticationManager`는 `UserDetailsService` 인터페이스 구현체에 의존성이 있습니다. 인증 과정에서는 요청에서 전달받은 username을 가진 유저의 여러 속성에 기반해 검증하기 때문인데요. 여기에서 따로 `AuthenticationManager`를 처리해 생성하지 않는다면 기존 `UserDetailsService`를 이용하게 됩니다. 그렇다면 어떻게 `AuthenticationManager`가 `CustomUserDetails`를 이용할 수 있을까요?
+
+저는 문제 해결의 실마리를 검색보다도 직접 코드를 뜯어보면서 발견할 수 있었습니다. 아래는 일차적으로 해결된 코드입니다.
+
+```java
+// SecurityConfig.java
+
+@Bean
+public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+    List<GlobalAuthenticationConfigurerAdapter> configurerAdapterList = new ArrayList<>();
+    GlobalAuthenticationConfigurerAdapter globalAuthenticationConfigurerAdapter = new GlobalAuthenticationConfigurerAdapter() {
+        @Override
+        public void configure(AuthenticationManagerBuilder auth) throws Exception {
+            auth.userDetailsService(customUserDetailsService);
+            super.configure(auth);
+        }
+    };
+    return configuration.getAuthenticationManager();
+}
+
+```
+
+Spring Security 5.4 버전 이후로는 더 이상 Config 파일에서 `WebSecurityConfigurerAdapter`를 상속하지 않습니다. 가장 큰 차이를 꼽자면, SecurityFilterChain을 Bean으로 올린다는 점이 되겠는데요. 그에 따라 `AuthenticationManager`도 `configure(AuthenticationManagerBuilder auth)` 메서드를 오버라이드해 이용하지 않게 되었습니다.
+
+`authenticationManager(AuthenticationConfiguration)` 메서드는 팀에 합류할 때부터 존재했습니다. 저는 이 코드를 최대한 변경하지 않고 작성하고 싶었습니다. 그래서 `AuthenticationConfiguration`의 코드를 분석하며 내부에서 주입된 의존성 객체들이 어떻게 `AuthenticationManager`를 구성하게 되었는지 살폈습니다.
+
+결론적으로는 `AuthenticationManagerBuilder`를 핵심으로 삼고, 이를 이용해 userDetailService를 정하게 두었는데요. 하지만 이 코드는 `AuthenticationConfiguration`을 이용하나,`GlobalAuthenticationConfigrurerAdapter` 타입에서도 보이듯 Spring Security의 레거시 코드 냄새가 납니다. 과연 이 코드가 Spring Security의 흐름에 걸맞는 좋은 코드라고 할 수 있을까요?
+
 ### Reference
+
+https://spring.io/blog/2022/02/21/spring-security-without-the-websecurityconfigureradapter
+
+https://dev.to/pryhmez/implementing-spring-security-6-with-spring-boot-3-a-guide-to-oauth-and-jwt-with-nimbus-for-authentication-2lhf
 
 <br/>
