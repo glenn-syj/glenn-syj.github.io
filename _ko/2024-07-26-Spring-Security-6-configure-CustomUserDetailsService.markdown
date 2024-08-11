@@ -24,7 +24,7 @@ layout: post
 
 ### 테스트 코드가 왜 UserDetailsService를 이용할까?
 
-이번 SSAFY 프로젝트에서는 TDD(Test Driven Development)까지는 아니더라도, JUnit과 Mockito를 이용해 테스트 코드를 주의를 기울여 작성해보고 싶었습니다. 특히, 단위 테스트를 이용해 개별 기능으로부터 얼마나 책임이 잘 분리되어 있는지도 고민해보고 싶었는데요. Spring Security의 넓은 의존성을 관리하거나 관련된 설정을 적용하는 것은 다른 글로 쓰고, 이번 글에서는 다음 예외에서 출발합니다.
+이번 SSAFY 프로젝트에서는 TDD(Test Driven Development)까지는 아니더라도, JUnit과 Mockito를 이용해 테스트 코드를 주의를 기울여 작성해보고 싶었습니다. 특히, 단위 테스트를 이용해 개별 기능으로부터 얼마나 책임이 잘 분리되어 있는지도 고민해보고 싶었는데요. 테스트 코드에서 Spring Security의 넓은 의존성을 관리하거나 관련된 설정을 적용하는 것은 다른 글로 쓰고, 이번 글에서는 다음 예외에서 출발해 `UserDetialsService`와 관련된 설정을 다룹니다.
 
 > org.springframework.security.authentication.InternalAuthenticationServiceException: UserDetailsService returned null, which is an interface contract violation
 
