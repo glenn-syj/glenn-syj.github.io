@@ -6,17 +6,21 @@ layout: post
 
 ## 들어가며
 
+<br/>
+
 ### Disclaimer
 
 - Last Update: 2024/08/11
 
 - SSAFY 내 이전 프로젝트에서 WebSocket을 맡았으나, 인원 부족으로 인한 팀 해체로 새로운 팀에서 Spring Security를 이용한 기존 인증과 인가 코드를 수정하고 개선하는 일에 우선적으로 돌입했습니다.
 - 이전 코드는 컨트롤러 기반의 로그인이 아니라, Fitler 위주로 JWT Filter 및 Login Filter를 이용하고 있었습니다.
-- Spring Security를 처음 이용하며, 마주하는 전체적인 그림이나 트러블슈팅에 대해 자주 글을 쓸 예정입니다.
+- Spring Security를 처음 이용하며, 마주하는 전체적인 그림이나 트러블슈팅에 대한 내용에 기반해 설정 코드를 작성하고 개선한 내용을 다룹니다.
 
 <br/>
 
 ## 문제 상황
+
+<br/>
 
 ### 테스트 코드가 왜 UserDetailsService를 이용할까?
 
@@ -24,9 +28,11 @@ layout: post
 
 > org.springframework.security.authentication.InternalAuthenticationServiceException: UserDetailsService returned null, which is an interface contract violation
 
-이 예외는 Spring Security 내에서 제공되는 `UserDetailsService` 인터페이스 구현체에서 `loadUserByUserName()`을 통해 유저 정보를 찾지 못했을 때 던져집니다. 여기에서 `UserDetailService` 궇녀체라고 함은 `AuthenticationProvider` 구현체에서 인증을 위해 이용하는 서비스 클래스라고 볼 수 있습니다. 하지만 테스트 코드를 통한 디버깅 결과, 따로 만든 `CustomUserDetailsService`를 이용하지 않고 있다는 점이 더욱 문제적이었습니다.
+이 예외는 Spring Security 내에서 제공되는 `UserDetailsService` 인터페이스 구현체에서 `loadUserByUserName()`을 통해 유저 정보를 찾지 못했을 때 던져집니다. 여기에서 `UserDetailService` 구현체라고 함은 `AuthenticationProvider` 구현체에서 인증을 위해 이용하는 서비스 클래스라고 볼 수 있습니다. 하지만 테스트 코드를 통한 디버깅 결과, 따로 만든 `CustomUserDetailsService`를 이용하지 않고 있다는 점이 더욱 문제적이었습니다. 왜 `CustomUserDetailsService`를 이용하지 않고, 또 설정은 어떻게 하는 걸까요?
 
 깊게 들어가기 전에! Spring Security를 이제 막 시작하시는 분이라면, 아래 살펴보기를 읽고 가셔도 좋겠습니다.
+
+<br/>
 
 ### 살펴보기: CustomUserService에 대해서
 
@@ -63,7 +69,11 @@ public String getUsername() {
 
 그리고 CustomUserDetailsService에서 오버라이드된 `loadUserByUsername()` 메서드는 `MemberRepository`에서 email로 Member 엔티티를 조회합니다.
 
+<br/>
+
 ## 문제 해결
+
+<br/>
 
 ### Spring Security 6에서의 설정 (1): 코드 뜯어보기
 
@@ -98,6 +108,8 @@ Spring Security 5.4 버전 이후로는 더 이상 Config 파일에서 `WebSecur
 
 결론적으로는 `AuthenticationManagerBuilder`를 핵심으로 삼고, 이를 이용해 `userDetailService`를 설정하게 두었는데요. 하지만 이 코드는 `AuthenticationConfiguration`을 이용하나,`GlobalAuthenticationConfigrurerAdapter` 타입에서도 보이듯 Spring Security의 레거시 코드 냄새가 납니다. 과연 이 코드가 Spring Security의 걸맞는 좋은 코드라고 할 수 있을까요?
 
+<br/>
+
 ### Spring Security 6에서의 설정 (2): AuthenticationProvider 이용하기
 
 저는 Spring Security에서의 인증 흐름에 따라, `AuthenticationManager` 구현체가 `AuthenticationProvider` 구현체를 이용한다는 점을 코드에 명시하고 싶었습니다. (1) 코드 뜯어보기에서 쓰인 코드는 `AuthenticationConfiguration`을 이용하긴 하지만, 실제로는 `configure()` 메서드를 오버라이드해 진행한다는 점에서 `WebSecurityConfigurerAdapter`를 쓰는 것과 큰 차이가 없는 까닭입니다. 게다가 저처럼 Spring Security를 처음 다루면서도, 기존 회원 관리 코드를 수정하고 새로 다루는 인원이 코드를 본다면 어떻게 될까요? 따라서 코드를 아래와 같이 수정했습니다.
@@ -122,6 +134,8 @@ public AuthenticationManager authenticationManager(AuthenticationConfiguration a
 
 `AuthenticationManagerBuilder`를 통해서 `authenticationManager`가 어떤 `authenticationProvider`를 이용할지 정해둘 수 있는데요. `authenticationProvider()` 메소드를 통해 `DaoAuthenticationProvider` 구현체를 생성하고 해당 구현체에서 `customUserDetails`와 `BCrpytPasswordEncoder`를 이용하도록 설정한 뒤 해당 구현체를 반환하도록 합니다. `DaoAuthenticationProvider`는 `Authentication` 구현체 중 하나인 `UsernamePasswordAuthenticationToken`을 이용할 때 인증 작업을 진행하는 대표적인 `AuthenticationProvider` 구현체라는 점에서 알맞다고 판단했습니다.
 
+<br/>
+
 ### 어떤 게 더 좋은 코드일까?
 
 이전에 `customUserDetailsService`를 이용하지 않았던 문제는 차치하고, (1)과 (2)만 비교해보겠습니다. 이해도와 책임이라는 두 기준 아래에서, 어떤 코드가 더 나을까요?
@@ -140,11 +154,15 @@ public AuthenticationManager authenticationManager(AuthenticationConfiguration a
 
 코드 (2)에서는 `DaoAuthenticationManager` 구현체 설정을 `authenticationProvider()` 메서드로 분리했고, 이 메서드는 `userDetailsService` 구현체와 `passwordEncoder` 구현체를 설정하고 반환하는 단일한 책임과 명확한 범위를 가집니다. `AuthenticationManager` 구현체를 Bean으로 올리면서도, `AuthenticationManagerBuilder`는 `authenticationProvider()` 반환값을 이용한다는 점도 명확합니다.
 
+<br/>
+
 ## 나가며
 
 비록 코드 (2)에도 충분히 개선점은 많고, 상황에 따라 전역적으로 추가 설정이 더욱 필요한 경우에는 `GlobalAuthenticationConfigurerAdapter`를 이용해야할 수도 있겠습니다. 하지만, 현재 프로젝트 상황에서는 코드 (2)가 더욱 이해도와 책임 분리 측면에서 더 낫다고 판단했습니다.
 
 언제든 이 글에 대해서 추가적인 의견이나 레퍼런스가 있으신 분은 환영합니다!
+
+<br/>
 
 ### Reference
 
