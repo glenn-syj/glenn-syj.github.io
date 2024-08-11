@@ -106,7 +106,7 @@ Spring Security 5.4 버전 이후로는 더 이상 Config 파일에서 `WebSecur
 
 `authenticationManager(AuthenticationConfiguration)` 메서드는 팀에 합류할 때부터 존재했습니다. 저는 이 코드를 최대한 변경하지 않고 작성하고 싶었습니다. 그래서 `AuthenticationConfiguration`의 코드를 분석하며 내부에서 주입된 의존성 객체들이 어떻게 `AuthenticationManager`를 구성하게 되었는지 살폈습니다.
 
-결론적으로는 `AuthenticationManagerBuilder`를 핵심으로 삼고, 이를 이용해 `userDetailService`를 설정하게 두었는데요. 하지만 이 코드는 `AuthenticationConfiguration`을 이용하나,`GlobalAuthenticationConfigrurerAdapter` 타입에서도 보이듯 Spring Security의 레거시 코드 냄새가 납니다. 과연 이 코드가 Spring Security의 걸맞는 좋은 코드라고 할 수 있을까요?
+결론적으로는 `AuthenticationManagerBuilder`를 핵심으로 삼고, 이를 이용해 `userDetailService`를 설정하게 두었는데요. 하지만 이 코드는 `AuthenticationConfiguration`을 이용하나,`GlobalAuthenticationConfigrurerAdapter` 타입에서도 보이듯 Spring Security의 레거시 코드 냄새가 납니다. 과연 이 코드가 Spring Security의 인증 흐름에 걸맞는 좋은 코드라고 할 수 있을까요?
 
 <br/>
 
