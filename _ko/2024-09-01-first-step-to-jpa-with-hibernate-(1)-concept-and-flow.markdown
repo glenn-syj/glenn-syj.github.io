@@ -8,7 +8,7 @@ layout: post
 
 ### Disclaimer
 
-- Last Update: 2024/09/01
+- Last Update: 2024/09/03
 
 - Java Persistence API와 hibernate를 이용하는 과정에서, 둘에 대해 스스로 가지고 있던 오해를 풀고 더욱 잘 이해하려고 노력하는 글입니다.
 - 관련된 학습 코드는 [github repo](https://github.com/glenn-syj/jpa-playground.git)에서 확인할 수 있습니다.
@@ -68,9 +68,9 @@ JPA는 이러한 문제를 해결하기 위해 등장했다고 볼 수 있습니
 
 #### 개념
 
-[Hibernate](https://hibernate.org/orm/)는 JPA 구현체이자, Java 진영의 대표적인 ORM 프레임워크입니다. Hibernate는 JAva 객체를 DB 테이블에 자동으로 매핑하고, 시스템 초기화 시점에 SQL을 대부분 생성합니다. Hibernate는 캐싱, 세션 관리, 확장성 등에서도 장점을 가집니다.
+[Hibernate](https://hibernate.org/orm/)는 JPA 구현체이자, Java 진영의 대표적인 ORM 프레임워크입니다. Hibernate는 Java 객체를 DB 테이블에 자동으로 매핑하고, 시스템 초기화 시점에 SQL을 대부분 생성합니다. Hibernate는 캐싱, 세션 관리, 확장성 등에서도 장점을 가집니다.
 
-Hibernate가 JPA를 따르는 구현체(Provider)라는 것은, Spring에서 JPA 구현체가 필요할 때 Hibernate를 이용할 수 있습니다. JPA 기반 repository를 쉽게 이용하도록 돕는 Spring Data JPA는 Hibernate를 기본으로 설정합니다.
+Hibernate가 JPA를 따르는 구현체(Provider)라는 것은, Spring에서 JPA 구현체가 필요할 때 Hibernate를 이용할 수 있다는 뜻입니다. JPA 기반 repository를 쉽게 이용하도록 돕는 Spring Data JPA는 Hibernate를 기본 구현체로 설정합니다.
 
 #### 특징
 
@@ -139,7 +139,7 @@ public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
 }
 ```
 
-`LocalContainerEntityManagerFactoryBean`는 `persistence.xml`를 읽어들인 정보에 바탕해 JPA 설정 정보를 담고 있는 `PersistenceUnitInfo` 객체를 만들어 냅니다. 데이터베이스 연결을 위한 `JDBC DataSource`와 지연 로딩과 같은 기능을 지원하기 위해 바이트 코드를 조작하는 로드 타임 위빙 `LoadTimeWeaver` 설정도 함께 담을 수 있습니다. `JpaVendorAdapter`는 JPA 구현체를 지정합니다.
+`LocalContainerEntityManagerFactoryBean`는 `persistence.xml`를 읽어들인 정보에 바탕해 JPA 설정 정보를 담고 있는 `PersistenceUnitInfo` 객체를 만들어 냅니다. 데이터베이스 연결을 위한 `JDBC DataSource`은 물론, 지연 로딩 등을 지원하기 위해 바이트 코드를 조작하는 로드 타임 위빙 `LoadTimeWeaver` 설정도 함께 담을 수 있습니다. `JpaVendorAdapter`는 JPA 구현체를 지정합니다.
 
 ```java
 @Bean
