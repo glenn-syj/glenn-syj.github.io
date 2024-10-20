@@ -8,9 +8,10 @@ layout: post
 
 ### Disclaimer
 
-- Last Update: 2024/09/03
+- Last Update: 2024/10/20
 
 - Java Persistence API와 hibernate를 이용하는 과정에서, 둘에 대해 스스로 가지고 있던 오해를 풀고 더욱 잘 이해하려고 노력하는 글입니다.
+- 고수준으로 추상화된 Spring Data Jpa 모듈을 전반적으로 다루는 글입니다. 특히, `JpaRepository<T, ID>`와 함께 쿼리 추상화 과정을 중점적으로 다룹니다.
 
 <br/>
 
@@ -360,3 +361,43 @@ Spring Data JPA 공식문서에서는 다음과 같은 경우에 QBE(Query By Ex
 - 복잡한 논리 조건 처리 불가 (OR, 중첩, 그룹화)
 - 문자열 매칭은 데이터베이스마다 다를 수 있음 (종속성 고려 필요)
 - 정확한 값 매칭 지원 (범위 검색은 지원하지 않음)
+
+## Spring Data JPA의 쿼리 추상화
+
+Spring Data JPA에서 가장 중요한 추상화 중 하나는 바로 `Repository` 인터페이스를 상속받는 레포지토리에서, 메소드명에 기반해 쿼리가 작성된다는 점입니다.
+
+Spring Data JPA에서는 메서드 이름을 파싱하고, 엔티티 필드를 확인하고, JPQL을 생성한 뒤 SQL로 변환하는 과정을 거치는데요. 이 과정이 세부적으로 어떠한 동작에서 이루어지는지 간단하게 살펴보겠습니다.
+
+### 프록시 객체를 이용한 동적 메서드 처리
+
+`Repository` 인터페이스를 상속받아 정의된 레포지토리는 생성된 프록시 객체를 통해 메서드를 처리합니다. 이러한 프록시 객체 생성 과정에는 `RepositoryFactorySupport` 추상 클래스가 관여하는데요. 이는 Spring Data 모듈 내에서 레포지토리 프록시 객체를 생성하는 데 이용됩니다.
+
+특히, `JpaRepository` 인터페이스의 경우에는 `RepositoryFactorySupport`를 상속하는 `JpaRepositoryFactory`가 관여합니다. 프록시 객체 생성 과정은 다른 글에서 다루도록 하겠습니다.
+
+#### (2) 메서드 이름 파싱
+
+메서드 이름 파싱은 `QueryLookupStrategy` 인터페이스를 통해서 이루어지는데요. 대표적인 구현체로는 `JpaQueryLookupStrategy`가 있습니다. `JpaQueryLookupStrategy`에서는 `resolveQuery` 메서드를 통해서 `PartTreeJpaQuery` 객체를 반환합니다.
+
+`PartTreeJpaQuery`는 내부적으로 파싱과 문자열 처리를 위한 `PartTree`, `JpaParameters`, `QueryPreparer`, `EscapeCharacter`를 이용합니다. 또한, 쿼리의 실행을 위한 `EntityManager`와 엔티티 정보를 이용하기 위한 `JpaMetamodelEntityInformation` 역시 이용합니다.
+
+여기에서 `PartTree`는 `method.getName()`을 통해 메소드 이름을 속성, 조건, 논리 연산자명을 이용해 부분으로 나눕니다. 예를 들어, `findByNameAndAge` 메소드가 `resolveQuery` 메소드를 거쳐 PartTree로 넘겨진다면 속성으로는 `name`과 `age`가, 조건으로는 `And`가 넘겨진다고 볼 수 있습니다. (이 역시, 자세한 과정은 글의 범위를 벗어나므로 추후 다른 글에서 다루겠습니다.)
+
+#### (3) JPQL 쿼리 생성
+
+`PartTreeJpaQuery` 객체가 생성될 때, 파싱된 정보를 토대로 `doCreateQuery()` 등의 메소드에 기반해 JPQL 쿼리를 생성합니다. Criteria API를 이용해 동적 쿼리가 생성되는 셈입니다.
+
+예시로 `UserRepository`의 `findByNameAndAge` 메서드는 `SELECT u FROM User u WHERE u.name = :name AND u.age = :age`와 같은 메서드로 나타내어집니다.
+
+#### (4) SQL 실행 및 결과 반환
+
+SQL 쿼리는 `EntityManager`의 `createQuery()` 메소드를 통해 실행되며, 엔티티 객체로 결과가 변환되어 반환되는데요. 이러한 과정은 주로 Hibernate와 같은 JPA 구현체에 의해 이루어집니다.
+
+<br/>
+
+## 나가며
+
+이번 글에서는 Spring Data JPA에서 `Repository` 인터페이스를 상속하면서도, 가장 흔히 이용되는 `JpaRepository` 인터페이스가 지원하는 기본 기능과 추가 기능을 다루었습니다. 특히 `CrudRepository`와 `QueryByExampleExecutor`도 함께 살펴보았습니다.
+
+Spring Data JPA가 쿼리를 추상화하는 과정을 세부적으로 다루기에는 글의 목적과 범위를 크게 넘어서서 넘어갔지만, 추후 각각의 과정을 다루어보겠습니다.
+
+새롭게 Spring Data JPA, 그 중에서도 `JpaRepository`에 대해 코드를 바탕으로 이해하고 싶은 분들에게 도움이 된다면 좋겠습니다. 저 역시도 이번 글을 작성하며 Spring에서 프록시 객체를 생성하고 이용하는 방식을 찾아보며 즐겁게 글을 작성할 수 있었습니다.
