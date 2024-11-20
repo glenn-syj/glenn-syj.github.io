@@ -192,7 +192,7 @@ Docker Image를 구성하는 레이어를 해체하고, 시스템의 변경사�
 
 Docker는 스토리지 드라이버를 통해 (`overlay2` 드라이버로 가정하겠습니다!), 읽기 전용인 Lowerdir과 읽기-쓰기가 가능한 Upperdir로 나누어 활용합니다. 전자는 변경된 파일을 포함한 스냅샷이고, 후자는 컨테이너 실행 시 변경된 파일 시스템을 기록하는 레이어이기도 합니다. 
 
-이 두 레이어는 Mergeddir에서 병합되어 컨테이너 실행 시 파일 시스템의 액세스 지점이 됩니다. 따라서 파일 시스템 변경 사항은 Lowerdir과 Upperdir의 병합 과정에서 차이점이 추적되어 레이어 변경사항이 기록되는데요. Lowerdir에서 변경되지 않은 파일은 유지되고, Upperdir에서 추가되거나 수정된 파일은 새로운 레이어로 기록됩니다.
+이 두 레이어는 merged 디렉토리에서 병합되어 컨테이너 실행 시 파일 시스템의 액세스 지점이 됩니다. 따라서 파일 시스템 변경 사항은 Lowerdir과 Upperdir의 병합 과정에서 차이점이 추적되어 레이어 변경사항이 기록되는데요. Lowerdir에서 변경되지 않은 파일은 유지되고, Upperdir에서 추가되거나 수정된 파일은 새로운 레이어로 기록됩니다.
 
 Snyk 역시 이러한 레이어 구조를 이용하여, 변경사항을 추적하고 취약점을 찾아낼 것으로 추측할 수 있겠습니다.
 
@@ -231,3 +231,5 @@ Snyk은 Docker 이미지 내의 패키지 매니저, 운영 체제, 라이브러
 [https://docs.snyk.io/scan-with-snyk/snyk-container/use-snyk-container/detect-the-container-base-image](https://docs.snyk.io/scan-with-snyk/snyk-container/use-snyk-container/detect-the-container-base-image)
 
 [https://nvd.nist.gov/vuln/detail/CVE-2022-0543](https://nvd.nist.gov/vuln/detail/CVE-2022-0543)
+
+[https://docs.docker.com/engine/storage/drivers/overlayfs-driver/](https://docs.docker.com/engine/storage/drivers/overlayfs-driver/)
