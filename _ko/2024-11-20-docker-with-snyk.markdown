@@ -1,5 +1,5 @@
 ---
-title: Windows 환경에서 Docker + Snyk 으로 컨테이너 이미지 취약점 맛보기
+title: Docker + Snyk 으로 컨테이너 이미지 취약점 맛보기
 lang: ko
 layout: post
 ---
@@ -12,8 +12,10 @@ layout: post
 
 - 컨테이너 보안의 중요성 및 기본 개념과 Snyk을 이용해 Docker 컨테이너 이미지의 취약점을 스캔해 살펴보는 글입니다.
 
+- `docker scan` 명령어가 폐기된 이후, Docker에서는 `docker scout`을 이용해 컨테이너 취약점 검사를 제공하고 있습니다. 하지만 이번 글에서는 추후 CI/CD 파이프라인과의 통합을 고려하여, Snyk 및 이를 통한 컨테이너 취약점 검사를 살펴보겠습니다.
+
 - 사전 환경 구성
-    - Linux 환경에서 docker cli를 이용할 때에는 `docker scan` 명령어를 이용하면 되지만, Widnows 환경에서는 docker desktop의 extension이나 snyk cli를 통해 Snyk을 이용할 수 있습니다.
+    - Docker Desktop의 snyk extension 혹은 snyk cli에 대한 설치가 필요합니다.
     - Snyk의 Authentication이 필요하므로 가입이 필요합니다. (해당 Extension에서 이동하거나, `snyk auth` 명령어로 진행 가능합니다.)
 
 <br/>
@@ -60,6 +62,8 @@ Snyk에서 제시하는 취약성 심각도는 Low, Medium, High, Critical로 �
 - Medium: 일부 조건에서 공격자가 애플리케이션의 민감한 데이터에 액세스하도록 허용할 수 있습니다. (리스크 프로파일 기반 정기 업데이트 권고)
 - High: 공격자가 애플리케이션의 민감한 데이터에 액세스하도록 허용할 수 있습니다. (최대한 빠르게 조치 권고)
 - Critical: 공격자가 민감한 데이터에 액세스하고 애플리케이션에서 코드를 실행할 수 있습니다. (즉각 조치 권고)
+
+추가적으로, `docker scout` 이전에 이용되었던 `docker scan`에서는 내부적으로 Snyk을 이용해 취약점 검사를 진행했다는 점 역시 알아두어도 좋겠습니다.
 
 ### Snyk으로 취약점 탐지하기
 
