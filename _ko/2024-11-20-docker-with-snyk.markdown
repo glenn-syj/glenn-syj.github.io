@@ -221,8 +221,13 @@ Snyk은 Docker 이미지 내의 패키지 매니저, 운영 체제, 라이브러
 ## 참고자료
 
 [https://docs.docker.com/engine/storage/drivers/](https://docs.docker.com/engine/storage/drivers/)
+
 [https://security.snyk.io/vuln/SNYK-DEBIAN12-ZLIB-6008963](https://security.snyk.io/vuln/SNYK-DEBIAN12-ZLIB-6008963)
+
 [https://snyk.io/learn/container-security/container-scanning/](https://snyk.io/learn/container-security/container-scanning/)
+
 [https://snyk.io/learn/docker-security-scanning/](https://snyk.io/learn/docker-security-scanning/)
+
 [https://docs.snyk.io/scan-with-snyk/snyk-container/use-snyk-container/detect-the-container-base-image](https://docs.snyk.io/scan-with-snyk/snyk-container/use-snyk-container/detect-the-container-base-image)
+
 [https://nvd.nist.gov/vuln/detail/CVE-2022-0543](https://nvd.nist.gov/vuln/detail/CVE-2022-0543)
