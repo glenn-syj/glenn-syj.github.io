@@ -90,14 +90,15 @@ Stateful
 
 #### Stateless vs. Stateful
 
-Stateful
-
-- 표준 DNS 질의는 53번 포트의 UDP를 이용해 이루어집니다. 기본적으로 512바이트의 데이터 크기 제한이 있으며, 초과 시 요청이 분할되거나 TCP로 전환됩니다.
-
 Stateless
 
+- 표준 DNS 질의는 53번 포트의 UDP를 이용해 이루어집니다. 기본적으로 512바이트의 데이터 크기 제한이 있으며, 초과 시 요청이 분할되거나 TCP로 전환됩니다.
 - DoH(DNS over HTTPS)는 요청과 응답을 HTTPS로 암호화하여 전송하는데, TCP 443번 포트를 이용합니다.
 - 주요 브라우저는 DoH를 기본 활성화하기도 하는데요. Firefox는 Cloudflare(1.1.1.1)을 기본 DoH 서버로 지정합니다.
+
+Stateful
+
+- TCP 전환(표준 DNS), TLS 연결(DoH)이 진행되는 과정에서는 Stateful합니다.
 
 ### 3. TCP 연결 설정
 
