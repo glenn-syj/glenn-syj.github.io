@@ -130,11 +130,11 @@ Spring 컨테이너가 각 Bean의 생성과 소멸을 독립적으로 관리하
 
 즉, 컴포지션이 강한 HAS-A 관계로 생명 주기를 공유하는 반면, Spring 환경 상 이번에 구현된 전략 패턴은 생명 주기가 독립적이므로 어그리게이션으로 표현했습니다.
 
-### 전략 패턴 적용
+## 전략 패턴 적용
 
-#### 엔티티
+### 엔티티
 
-`Account.java`
+#### `Account.java`
 
 ```java
 @Entity
@@ -160,7 +160,7 @@ public class Account extends AuditableEntity {
 }
 ```
 
-`BalanceSnapshot.java`
+#### `BalanceSnapshot.java`
 
 ```java
 @Entity
@@ -195,9 +195,9 @@ public class BalanceSnapshot extends BaseEntity {
 
 `BalanceSnapshot.java`에서는 스냅샷 조회 시 불필요한 Account 엔티티 조인이 발생하지 않도록 계좌 ID만 저장합니다. 이는 스냅샷이 특정 시점의 데이터 상태를 그대로 보존하는 것이 목적이므로, Account 엔티티 변경 사항에 영향을 받지 않으므로 따로 엔티티 매핑을 지정해주지 않았습니다.
 
-#### 컨텍스트
+### 컨텍스트
 
-`SettlementService.java`
+#### `SettlementService.java`
 
 ```java
 @Service
@@ -227,7 +227,7 @@ public class SettlementService {
 
 #### 전략 인터페이스
 
-`SnapshotStrategy.java`
+#### `SnapshotStrategy.java`
 
 ```java
 public interface SnapshotStrategy {
@@ -238,11 +238,11 @@ public interface SnapshotStrategy {
 
 전략 인터페이스인 `SnapshotStrategy`는 전략 패턴의 핵심 요소입니다. 이 인터페이스는 모든 구체적인 전략이 구현해야 하는 메서드를 정의합니다.
 
-#### 구체적인 전략
+### 구체적인 전략
 
 스냅샷 생성 전략을 고민한 과정에서의 간단한 정리는 [이 링크](https://github.com/tikkle-a501/tikkle/issues/20)를 참고해주세요.
 
-`JpaSnapshotStrategy.java`
+#### `JpaSnapshotStrategy.java`
 
 ```java
 @Component("jpaSnapshotStrategy")
@@ -279,7 +279,7 @@ public class JpaSnapshotStrategy implements SnapshotStrategy {
 
 당연하게도, 이 코드는 문제 의식의 출발점이 된 코드입니다. 메모리 부족 등의 이유로 데이터를 모두 로드하는 것이 불가능하거나 비용적으로 비효율적임을 걱정했습니다.
 
-`StreamSnapshotStrategy.java`
+#### `StreamSnapshotStrategy.java`
 
 ```java
 @Component("streamSnapshotStrategy")
@@ -343,7 +343,7 @@ public class StreamSnapshotStrategy implements SnapshotStrategy {
 
 `entityManager`를 이용해 트랜잭션 내에서 영속성 컨텍스트에 데이터가 남아있어 메모리가 낭비되지 않도록 해야합니다. 특히 `Iterator`를 이용하여 배치 단위로 계좌 엔티티를 불러오고 스냅샷을 저장합니다. 따라서 트랜잭션 내에서 `flush()`를 통해 지속적으로 변경사항을 커밋하고, `clear()`를 통해 영속성 컨텍스트를 초기화하는 작업이 필요합니다.
 
-`PagingSnapshotStrategy.java`
+#### `PagingSnapshotStrategy.java`
 
 ```java
 @Component("pagingSnapshotStrategy")
@@ -414,7 +414,7 @@ Slice<Account> findAllAsSlice(Pageable pageable);
 
 JPA Stream과 달리, 페이징 처리를 이용하면 각 페이지는 독립적인 쿼리로 처리됩니다. 그러나 `createSnapshot()` 자체가 `@Transactional`을 통해서 하나의 트랜잭션으로 처리되므로, `StreamSnapshotStrategy`와 비슷하게 영속성 컨텍스트를 관리했습니다.
 
-`JdbcSnapshotStrategy.java`
+#### `JdbcSnapshotStrategy.java`
 
 ```java
 @Component("jdbcSnapshotStrategy")
@@ -468,8 +468,185 @@ public int insertDirectlyFromAccounts() {
 
 ID로 이용하고 있는 ULID를 기존 어플리케이션 단에서 생성한 것과 달리, 위는 MariaDB 내부에서 직접 생성해야하므로 id에 대해 ULID를 BINARY(16)으로 저장하도록 했습니다.
 
-이 방법에서는데이터가 애플리케이션 메모리로 로드되는 대신 DB 엔진 내에서 작업이 수행되며, 트랜잭션 오버헤드도 최소화 될 것으로 기대했습니다.
+이 방법에서는 데이터가 애플리케이션 메모리로 로드되는 대신 DB 엔진 내에서 작업이 수행되며, 트랜잭션 오버헤드도 최소화 될 것으로 기대했습니다.
+
+## 계좌 스냅샷 생성 테스트
+
+### 테스트 환경 및 설정
+
+계좌 스냅샷 생성 전략들의 성능을 비교하기 위한 테스트 환경은 다음과 같이 구성되었습니다:
+
+#### 데이터베이스
+
+TestContainers를 사용한 MariaDB 10.6 컨테이너
+
+- 데이터베이스명: `snapshot_test`
+- UTF-8 문자셋, 256MB InnoDB 버퍼 풀 크기
+- JDBC 설정: `rewriteBatchedStatements=true`로 배치 처리 최적화
+- 인메모리 데이터베이스 대신, 운영 환경과 유사하게 Docker 이미지를 이용하기 위해 TestContainers를 이용했습니다. (자세한 사항은 다음 글에서 다뤄보겠습니다.)
+
+#### JPA 설정
+
+- Hibernate 배치 크기: 100 (5000, 1000, 100 테스트 후 100 선택)
+- 배치 삽입/업데이트 최적화
+- 통계 및 SQL 로깅
+
+#### 테스트 데이터
+
+- 총 50,000개의 BalanceSnapshot 데이터 생성
+- 각 계좌는 회원 정보와 연결되며, 범위 내 무작위 시간 재화량(timeQnt)과 랭킹 포인트(rankingPoint) 양을 포함
+- Account와 Member는 JDBC 배치 처리를 통해 생성되며, 런타임 내에서 데이터베이스에 저장되며 재사용됨.
+
+### 테스트 방식
+
+스냅샷 생성에 관한 각 전략은 다음 지표를 기준으로 평가됩니다.
+JMH와 같은 벤치마킹 툴을 이용하는 것이 바람직하나, 현재는 기능 개발에 우선 순위를 두므로 이용하지 않았습니다.
+
+- 실행 시간: 전략 실행에 소요된 시간(밀리초)
+- 메모리 사용량: 전략 실행 중 사용된 메모리(MB)
+- 생성된 스냅샷 수: 각 전략이 생성한 스냅샷의 총 개수
+
+### 테스트를 작성하며
+
+#### @DataJpaTest
+
+`@DataJpaTest` 어노테이션을 통해, JPA 설정을 구성하고 전체적인 코드 대신 성능 비교에서 중점을 두는 Repository 계층 중심으로 빠르게 테스트를 작성했습니다. 전략 패턴과 관계되어 추가적으로 필요한 컴포넌트는 `@Import` 어노테이션을 통해 주입했습니다.
+특히, `@DataJpaTest`는 롤백 기능을 기본값으로 지원하므로 테스트 메서드가 종료되면 트랜잭션이 롤백됩니다. 따라서 테스트 메서드가 종료되면 트랜잭션이 롤백됩니다.
+
+#### @Transactional
+
+중요한 것은 `SettlementService`에서의 트랜잭션이지, 테스트 메서드의 트랜잭션이 메인은 아닙니다. 게다가 `@DataJpaTest`가 각 테스트 메서드를 감싸 롤백을 진행한다면, BalanceSnapshot 엔티티를 생성하기 위해 미리 생성해 둔 Account와 Member 엔티티 데이터를 중복해서 작성해야 합니다.
+
+따라서 테스트 메서드에서는 `@Transactional(propagation = Propagation.NOT_SUPPORTED)` 어노테이션을 통해 트랜잭션을 비활성화하고, 테스트 메서드가 종료되면 롤백을 진행하지 않도록 했습니다. 덕분에 BalanceSnapshot을 생성하기 위해 동일한 데이터를 재사용할 수 있었습니다.
+그리고 `NOT_SUPPORTED` 설정은 테스트 메서드 자체가 트랜잭션 없이 실행되도록 지정해, 비즈니스 로직 내에서의 트랜잭션 경계를 유지할 수 있도록 했습니다.
+
+각 테스트 메서드 마다 생성된 BalanceSnapshot 엔티티는 `BalanceSnapshotRepository.deleteAllInBatch()`를 이용해 매 테스트마다 수동으로 제거했습니다. 최종적으로 생성된 데이터에 대해서, TestContainers를 이용해 생성된 MariaDB 컨테이너는 테스트 메서드가 종료되면 자동으로 소멸됨을 참고했습니다.
+
+#### @AutoConfigureTestDatabase
+
+TestContainers를 이용하는 목표 중 하나가, 운영 시 이용하는 MariaDB Docker 이미지 환경에 있으므로 `@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)` 어노테이션을 통해 인메모리 데이터베이스를 이용하지 않게 했습니다.
+
+#### @DynamicPropertySource
+
+```java
+@DynamicPropertySource
+    static void registerMariaDBProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> mariaDBContainer.getJdbcUrl() + "?rewriteBatchedStatements=true");
+
+        registry.add("spring.datasource.username", mariaDBContainer::getUsername);
+        registry.add("spring.datasource.password", mariaDBContainer::getPassword);
+        registry.add("spring.datasource.driver-class-name", mariaDBContainer::getDriverClassName);
+
+        // JPA 설정 추가
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create");
+        registry.add("spring.jpa.show-sql", () -> "false");
+        registry.add("spring.jpa.properties.hibernate.format_sql", () -> "true");
+        registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+        registry.add("logging.level.org.hibernate.SQL", () -> "DEBUG");
+        registry.add("logging.level.org.hibernate.type.descriptor.sql.BasicBinder", () -> "TRACE");
+        registry.add("logging.level.org.hibernate.jdbc.batch", () -> "TRACE");
+
+        registry.add("spring.jpa.properties.hibernate.jdbc.batch_size", () -> "100");
+        registry.add("spring.jpa.properties.hibernate.order_inserts", () -> "true");
+        registry.add("spring.jpa.properties.hibernate.order_updates", () -> "true");
+        registry.add("spring.jpa.properties.hibernate.jdbc.batch_versioned_data", () -> "true");
+    }
+```
+
+@DynamicPropertySource는 테스트 실행 시 동적으로 Spring 환경의 프로퍼티 값을 설정할 수 있게 해주는데요. 이를 이용해 각 테스트 클래스마다 독립적인 리소스를 구성할 수 있으며, 이번 성능 비교에서는 TestContainers를 이용해 생성한 MariaDB 컨테이너의 연결 정보를 설정할 수 있는 데 이용했습니다. 이는 꼭 `static` 메서드에서만 사용가능합니다.
+
+#### 전략 패턴과 테스트
+
+```java
+private void testStrategy(SnapshotStrategy strategy, SnapshotStrategyType strategyType) {
+    // 메모리 및 시간 측정
+    long startMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    long startTime = System.nanoTime();
+
+    // 전략 실행
+    settlementService.setSnapshotStrategy(strategyType, strategy);
+    settlementService.createSnapshots();
+
+    // 결과 계산 및 검증
+    // ...
+}
+```
+
+모든 전략에 대해 동일한 테스트 로직을 이용해, 테스트 코드를 간결하고 일관성 있게 유지할 수 있었습니다. 알고리즘에 대해 각기 다른 클래스를 만들었다면 중복된 코드가 발생했을 것이고, 상속이 사용된다면 런타임에 유연하게 이용하지 못했을 것입니다.
+
+```java
+
+// Bean으로 올라간 snapshotStrategy에 대한 Map 주입
+@Autowired
+private Map<String, SnapshotStrategy> snapshotStrategyMap;
+
+@Test
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+@Order(1)
+public void testJpaStrategy() {
+    logger.info("Testing JPA strategy...");
+    SnapshotStrategy strategy = snapshotStrategyMap.get(SnapshotStrategyType.JPA.getBeanName());
+    testStrategy(strategy, SnapshotStrategyType.JPA);
+}
+```
+
+또한, 만약 전략 패턴을 이용하지 않고 각 알고리즘을 클래스로 구현해 이용했다면 단순히 알고리즘 간 성능은 비교할 수 있겠지만, 실제 비즈니스 로직이 무의미해졌을 것이라고 생각합니다. 현재 `SettlementService`는 로깅을 진행하고, 트랜잭션 경계를 설정하는 역할을 수행합니다. 알고리즘 별 클래스를 따로 만들었다면 이는 무시되었을 것입니다.
+
+### 테스트 결과
+
+```
+Strategy: JPA findAll() saveAll() with Batch, Execution time: 91194 ms, Memory used: 100 MB, Snapshots created: 50000
+Strategy: STREAM API with Batch, Execution time: 65464 ms, Memory used: -35 MB, Snapshots created: 50000
+Strategy: PAGING with Batch, Execution time: 67203 ms, Memory used: -61 MB, Snapshots created: 50000
+Strategy: JDBC SELECT INTO, Execution time: 1076 ms, Memory used: 0 MB, Snapshots created: 50000
+```
+
+위는 `System.nanoTime()`로 시간을 측정하고, `Runtime.getRuntime().totalMemory()`와 `Runtime.getRuntime().freeMemory()`를 이용해 메모리 사용량을 측정한 결과입니다.
+분명히 Execution Time과 달리, Memory used에서 음수가 나오는데요. 이는 메모리 사용량에 대해 신뢰할 수 없는 측정 방식임을 알 수 있습니다.
+
+추측하건대, Garbage Collector가 작동하면서 메모리 사용량의 변화가 생겼거나 처리 중간에의 메모리 사용량을 반영하지 못할 가능성이 높습니다.
+
+따라서 IntelliJ에서 제공하는 프로파일러를 통해서 CPU 타임과 메모리 할당량 역시 측정해보았습니다. CPU 타임에는 순수 Java 코드 실행 시간과 JVM 내부 작업 시간이 포함되고, I/O 대기시간이나 쿼리 실행 대기 시간 등은 포함되지 않습니다.
+
+#### 실행 시간 System.nanoTime()
+
+| 전략   | 실행 시간 | 상대적 성능 |
+| ------ | --------- | ----------- |
+| JPA    | 91,194 ms | 1.0x (기준) |
+| Stream | 65,464 ms | 1.4x 빠름   |
+| Paging | 67,203 ms | 1.4x 빠름   |
+| JDBC   | 1,076 ms  | 84.8x 빠름  |
+
+#### CPU 타임 (IntelliJ 프로파일러)
+
+![https://private-user-images.githubusercontent.com/65771798/420601431-925a2784-b338-46e5-a8e4-9754375d136b.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDE0NDUwNjMsIm5iZiI6MTc0MTQ0NDc2MywicGF0aCI6Ii82NTc3MTc5OC80MjA2MDE0MzEtOTI1YTI3ODQtYjMzOC00NmU1LWE4ZTQtOTc1NDM3NWQxMzZiLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDglMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA4VDE0MzkyM1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTM5NTVlNzUzOWEzNWFiZjZlNWY2Mzc1OWExZTc4ODQ0ZmQ4ZTIzYjI5NWZhNmRkOThhYzU1Y2E4ZGZhNjViZTkmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.xrMcjB5Tqj9UcVc0QlE5dPa1PMAQRn-RnytGPkRpRSg](https://private-user-images.githubusercontent.com/65771798/420601431-925a2784-b338-46e5-a8e4-9754375d136b.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDE0NDUwNjMsIm5iZiI6MTc0MTQ0NDc2MywicGF0aCI6Ii82NTc3MTc5OC80MjA2MDE0MzEtOTI1YTI3ODQtYjMzOC00NmU1LWE4ZTQtOTc1NDM3NWQxMzZiLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDglMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA4VDE0MzkyM1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTM5NTVlNzUzOWEzNWFiZjZlNWY2Mzc1OWExZTc4ODQ0ZmQ4ZTIzYjI5NWZhNmRkOThhYzU1Y2E4ZGZhNjViZTkmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.xrMcjB5Tqj9UcVc0QlE5dPa1PMAQRn-RnytGPkRpRSg)
+
+| 전략   | CPU 타임                   | 상대적 성능 |
+| ------ | -------------------------- | ----------- |
+| JPA    | 5,795 ms                   | 1.0x (기준) |
+| Stream | 3,883 ms                   | 1.5x 빠름   |
+| Paging | 3,970 ms                   | 1.5x 빠름   |
+| JDBC   | 프로파일러에 나타나지 않음 | -           |
+
+#### 메모리 할당량 (IntelliJ 프로파일러)
+
+![https://private-user-images.githubusercontent.com/65771798/420601283-00152e35-45e6-4f3e-a4b6-ba4cdc12b4ba.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDE0NDUwNjMsIm5iZiI6MTc0MTQ0NDc2MywicGF0aCI6Ii82NTc3MTc5OC80MjA2MDEyODMtMDAxNTJlMzUtNDVlNi00ZjNlLWE0YjYtYmE0Y2RjMTJiNGJhLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDglMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA4VDE0MzkyM1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTU2Yjg3MDgzYWU3OWYyYTFiYzRlMjZlMmNmYjQ2MzQ5MmFiZmEzYTQxZGM3OGMzYTJjMzU1ZmMyMzZkYTNkYTUmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.gwFO2Jc806Bri193uQHOolhVjVrn8GgofFCEp4LYid8](https://private-user-images.githubusercontent.com/65771798/420601283-00152e35-45e6-4f3e-a4b6-ba4cdc12b4ba.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDE0NDUwNjMsIm5iZiI6MTc0MTQ0NDc2MywicGF0aCI6Ii82NTc3MTc5OC80MjA2MDEyODMtMDAxNTJlMzUtNDVlNi00ZjNlLWE0YjYtYmE0Y2RjMTJiNGJhLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDglMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA4VDE0MzkyM1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTU2Yjg3MDgzYWU3OWYyYTFiYzRlMjZlMmNmYjQ2MzQ5MmFiZmEzYTQxZGM3OGMzYTJjMzU1ZmMyMzZkYTNkYTUmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.gwFO2Jc806Bri193uQHOolhVjVrn8GgofFCEp4LYid8)
+
+| 전략   | 메모리 할당량              | 상대적 효율성 |
+| ------ | -------------------------- | ------------- |
+| JPA    | 586.74 MB                  | 1.0x (기준)   |
+| Stream | 569.85 MB                  | 1.03x 효율적  |
+| Paging | 575.05 MB                  | 1.02x 효율적  |
+| JDBC   | 프로파일러에 나타나지 않음 | -             |
+
+JDBC 전략의 메모리 할당량이 측정되지 않은 이유는 이 전략이 Java 애플리케이션에서 거의 객체를 생성하지 않고, 대부분의 작업을 데이터베이스 엔진 내에서 직접 수행하기 때문입니다.
+
+실제로는 데이터베이스 서버에서 메모리를 사용하지만, 이는 Java 프로파일러로 측정할 수 없기 때문임 역시 참고해주시면 좋겠습니다. 이후 스냅샷 생성의 기본 전략은 테스트 결과에 기반해 JDBC 전략을 이용하기로 결정했습니다.
 
 ## References
 
 - [https://en.wikipedia.org/wiki/Strategy_pattern](https://en.wikipedia.org/wiki/Strategy_pattern)
+- [https://www.baeldung.com/spring-order](https://www.baeldung.com/spring-order)
+- [https://www.geekyhacker.com/high-performance-data-fetching-using-spring-data-jpa-stream/](https://www.geekyhacker.com/high-performance-data-fetching-using-spring-data-jpa-stream/)
+- [https://spring.io/guides/gs/relational-data-access](https://spring.io/guides/gs/relational-data-access)
+- [https://docs.spring.io/spring-framework/reference/data-access/jdbc/core.html#jdbc-NamedParameterJdbcTemplate](https://docs.spring.io/spring-framework/reference/data-access/jdbc/core.html#jdbc-NamedParameterJdbcTemplate)
