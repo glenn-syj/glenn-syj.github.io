@@ -464,7 +464,9 @@ public int insertDirectlyFromAccounts() {
 }
 ```
 
-가장 중요한 점은 BalanceSnapshot 엔티티가 필요로 하는 필드는 Account 엔티티에 모두 존재하므로, 위와 같이 직접 데이터를 변환해 삽입할 수 있다는 점입니다. 따라서 처음에는 JdbcTemplate에서 지원하는 Bulk Insert를 고려해보았으나, 데이터에 대한 추가적인 변환이나 작업이 필요없다는 점에 착안해 직접 INSERT INTO SELECT 문을 이용했습니다.
+가장 중요한 점은 BalanceSnapshot 엔티티가 필요로 하는 필드는 Account 엔티티에 모두 존재하므로, 위와 같이 직접 데이터를 변환해 삽입할 수 있다는 점입니다.
+
+따라서 처음에는 JdbcTemplate에서 지원하는 Bulk Insert를 고려해보았으나, 데이터에 대한 추가적인 변환이나 작업이 필요없다는 점에 착안해 직접 INSERT INTO SELECT 문을 이용했습니다.
 
 ID로 이용하고 있는 ULID를 기존 어플리케이션 단에서 생성한 것과 달리, 위는 MariaDB 내부에서 직접 생성해야하므로 id에 대해 ULID를 BINARY(16)으로 저장하도록 했습니다.
 
@@ -511,6 +513,7 @@ JMH와 같은 벤치마킹 툴을 이용하는 것이 바람직하나, 현재는
 #### @DataJpaTest
 
 `@DataJpaTest` 어노테이션을 통해, JPA 설정을 구성하고 전체적인 코드 대신 성능 비교에서 중점을 두는 Repository 계층 중심으로 빠르게 테스트를 작성했습니다. 전략 패턴과 관계되어 추가적으로 필요한 컴포넌트는 `@Import` 어노테이션을 통해 주입했습니다.
+
 특히, `@DataJpaTest`는 롤백 기능을 기본값으로 지원하므로 테스트 메서드가 종료되면 트랜잭션이 롤백됩니다. 따라서 테스트 메서드가 종료되면 트랜잭션이 롤백됩니다.
 
 #### @Transactional
@@ -518,6 +521,7 @@ JMH와 같은 벤치마킹 툴을 이용하는 것이 바람직하나, 현재는
 중요한 것은 `SettlementService`에서의 트랜잭션이지, 테스트 메서드의 트랜잭션이 메인은 아닙니다. 게다가 `@DataJpaTest`가 각 테스트 메서드를 감싸 롤백을 진행한다면, BalanceSnapshot 엔티티를 생성하기 위해 미리 생성해 둔 Account와 Member 엔티티 데이터를 중복해서 작성해야 합니다.
 
 따라서 테스트 메서드에서는 `@Transactional(propagation = Propagation.NOT_SUPPORTED)` 어노테이션을 통해 트랜잭션을 비활성화하고, 테스트 메서드가 종료되면 롤백을 진행하지 않도록 했습니다. 덕분에 BalanceSnapshot을 생성하기 위해 동일한 데이터를 재사용할 수 있었습니다.
+
 그리고 `NOT_SUPPORTED` 설정은 테스트 메서드 자체가 트랜잭션 없이 실행되도록 지정해, 비즈니스 로직 내에서의 트랜잭션 경계를 유지할 수 있도록 했습니다.
 
 각 테스트 메서드 마다 생성된 BalanceSnapshot 엔티티는 `BalanceSnapshotRepository.deleteAllInBatch()`를 이용해 매 테스트마다 수동으로 제거했습니다. 최종적으로 생성된 데이터에 대해서, TestContainers를 이용해 생성된 MariaDB 컨테이너는 테스트 메서드가 종료되면 자동으로 소멸됨을 참고했습니다.
