@@ -132,7 +132,68 @@ Spring 컨테이너가 각 Bean의 생성과 소멸을 독립적으로 관리하
 
 ### 전략 패턴 적용
 
-### 엔티티
+#### 엔티티
+
+`Account.java`
+
+```java
+@Entity
+@Table(name = "accounts")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Account extends AuditableEntity {
+	@Id
+	@Column(columnDefinition = "BINARY(16)")
+	private UUID id = UlidCreator.getMonotonicUlid().toUuid();
+
+	@OneToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "member_id", nullable = false)
+	private Member member;
+
+	@Column(name = "time_qnt", columnDefinition = "INTEGER")
+	private Integer timeQnt;
+
+	@Column(name = "ranking_point", columnDefinition = "INTEGER")
+	private Integer rankingPoint;
+
+    // ...
+}
+```
+
+`BalanceSnapshot.java`
+
+```java
+@Entity
+@Table(name = "balance_snapshot")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class BalanceSnapshot extends BaseEntity {
+
+    @Id
+    @Column(columnDefinition = "BINARY(16)")
+    private UUID id = UlidCreator.getMonotonicUlid().toUuid();
+
+    // 계좌 ID 이외의 정보는 필요하지 않으므로 Id만 이용
+    @Column(nullable = false)
+    private UUID accountId;
+
+    @Column(nullable = false)
+    private int timeQnt;
+
+    @Column(nullable = false)
+    private int rankingPoint;
+
+    @Builder
+    private BalanceSnapshot(UUID accountId, int timeQnt, int rankingPoint) {
+        this.accountId = accountId;
+        this.timeQnt = timeQnt;
+        this.rankingPoint = rankingPoint;
+    }
+
+}
+```
+
+`BalanceSnapshot.java`에서는 스냅샷 조회 시 불필요한 Account 엔티티 조인이 발생하지 않도록 계좌 ID만 저장합니다. 이는 스냅샷이 특정 시점의 데이터 상태를 그대로 보존하는 것이 목적이므로, Account 엔티티 변경 사항에 영향을 받지 않으므로 따로 엔티티 매핑을 지정해주지 않았습니다.
 
 #### 컨텍스트
 
