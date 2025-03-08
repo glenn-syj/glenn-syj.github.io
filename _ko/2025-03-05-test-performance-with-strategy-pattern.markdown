@@ -1,5 +1,5 @@
 ---
-title: 전략 패턴으로 비즈니스 로직 성능 비교하기
+title: 전략 패턴으로 금액 정산 비즈니스 로직 성능 비교하기
 lang: ko
 layout: post
 ---
@@ -7,7 +7,11 @@ layout: post
 ## 들어가며
 
 - 전략 패턴을 활용하여 간단한 엔티티 조회 및 생성 과정에서의 로직 성능을 비교해봅니다.
+
+- 티끌(Tikkle)은 '시간'이라는 내부 재화를 통해 단체 내 구성원 간 서로 도움을 쉽게 주고받기 위해 만든 플랫폼 웹사이트입니다. 구성원은 도움을 주고 받으며 '시간'을 소비하고 획득하며, 나아가 환전 기능을 통해 '시간'을 랭킹 포인트로 바꿀 수 있습니다. 정산 기능은 이러한 활동의 무결성을 검증하고, 이상 거래를 감지하는 밑바탕이 되는 중요한 기능입니다.
+
 - 계좌 정산 작업의 밑바탕이 되는, Account 엔티티의 마지막 상태를 저장하는 BalanceSnapshot 엔티티 생성 방식 비교에 따른 성능 차이를 비교합니다.
+
 - 자세한 내용은 아래 링크에서 확인하실 수 있습니다.
   - [https://github.com/tikkle-a501/tikkle/issues/20](https://github.com/tikkle-a501/tikkle/issues/20)
   - [https://github.com/tikkle-a501/tikkle/pull/21](https://github.com/tikkle-a501/tikkle/pull/21)
