@@ -107,7 +107,7 @@ JPA가 비효율적이라면 왜 비효율적인지, JDBC가 효율적이라면 
 
 ### 전략 패턴 도식
 
-![Tikkle_StartegyPatternUML](../_images/250305+tikkle+strategy+uml.png)
+![Tikkle_StartegyPatternUML](/assets/images/250305+tikkle+strategy+uml.png)
 
 앞서 설명한 정의에서와 같이 전략 패턴의 요소는 다음과 같이 작성했습니다.
 
@@ -623,7 +623,7 @@ Strategy: JDBC SELECT INTO, Execution time: 1076 ms, Memory used: 0 MB, Snapshot
 
 #### CPU 타임 (IntelliJ 프로파일러)
 
-![cpu time](../_images/250305+cpu+time.png)
+![cpu time](/assets/images/250305+cpu+time.png)
 
 | 전략   | CPU 타임                   | 상대적 성능 |
 | ------ | -------------------------- | ----------- |
@@ -634,7 +634,7 @@ Strategy: JDBC SELECT INTO, Execution time: 1076 ms, Memory used: 0 MB, Snapshot
 
 #### 메모리 할당량 (IntelliJ 프로파일러)
 
-![memory allocation](../_images/250305+memory+allocation.png)
+![memory allocation](/assets/images/250305+memory+allocation.png)
 
 | 전략   | 메모리 할당량              | 상대적 효율성 |
 | ------ | -------------------------- | ------------- |
