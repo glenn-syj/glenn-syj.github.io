@@ -634,7 +634,7 @@ Strategy: JDBC SELECT INTO, Execution time: 1076 ms, Memory used: 0 MB, Snapshot
 
 #### 메모리 할당량 (IntelliJ 프로파일러)
 
-![memory allocation](/assets/images/250305+memory+allocation.png)
+![memory allocation](/assets/images/250305+memory+allocations.png)
 
 | 전략   | 메모리 할당량              | 상대적 효율성 |
 | ------ | -------------------------- | ------------- |
