@@ -5,6 +5,10 @@
   background: #0d1117;
   @extend %vertical-rhythm;
 
+  * {
+    background-color: transparent !important;
+  }
+
   .highlighter-rouge & {
     background: #0d1117;
   }
