@@ -163,8 +163,8 @@ code {
   font-family: "JetBrains Mono", "Consolas", "Monaco", "Menlo", "Ubuntu Mono",
     monospace;
   border-radius: 6px;
-  background-color: #0d1117;
-  color: #c9d1d9;
+  background-color: #f6f8fa;
+  color: #24292e;
 }
 
 code {
@@ -176,7 +176,7 @@ code {
 pre {
   padding: 16px;
   overflow-x: auto;
-  border: 1px solid #30363d;
+  border: 1px solid #e1e4e8;
 
   > code {
     border: 0;
@@ -189,8 +189,8 @@ pre {
 }
 
 :not(pre) > code.highlighter-rouge {
-  background-color: rgba(110, 118, 129, 0.4);
-  color: #e6edf3;
+  background-color: #f6f8fa;
+  color: #24292e;
   padding: 0.2em 0.4em;
   border-radius: 3px;
   font-size: 85%;
