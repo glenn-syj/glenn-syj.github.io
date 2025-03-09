@@ -160,7 +160,8 @@ blockquote {
 pre,
 code {
   @include relative-font-size(0.9375);
-  font-family: $code-font-family;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+    Consolas, "Liberation Mono", monospace;
   border-radius: 6px;
   background-color: #f6f8fa;
   color: #24292f;
