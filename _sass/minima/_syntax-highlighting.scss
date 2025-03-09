@@ -81,7 +81,6 @@
   } // Generic.Traceback
   .kc {
     color: #ff7b72;
-    font-weight: bold;
   } // Keyword.Constant
   .kd {
     color: #ff7b72;
@@ -123,7 +122,7 @@
   } // Name.Exception
   .nf {
     color: #d2a8ff;
-    font-weight: bold;
+    font-weight: normal;
   } // Name.Function
   .nn {
     color: #c9d1d9;
@@ -218,4 +217,36 @@
   ::selection {
     background-color: #3b5070;
   }
+}
+
+// 코드 블록 글꼴 설정
+code,
+pre {
+  font-family: "JetBrains Mono", "Consolas", "Monaco", "Menlo", "Ubuntu Mono",
+    monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+// 파일명 표시 스타일
+.highlight .filename {
+  background-color: #161b22;
+  color: #8b949e;
+  border-bottom: 1px solid #30363d;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  padding: 8px 16px;
+  font-family: "JetBrains Mono", "Consolas", "Monaco", monospace;
+  font-size: 12px;
+}
+
+// 코드 블록 내 줄 번호 스타일 (선택적)
+.highlight .lineno {
+  color: #6e7681;
+  display: inline-block;
+  padding: 0 5px;
+  border-right: 1px solid #30363d;
+  margin-right: 10px;
+  text-align: right;
+  user-select: none;
 }
