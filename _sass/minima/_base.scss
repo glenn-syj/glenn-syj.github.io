@@ -160,23 +160,22 @@ blockquote {
 pre,
 code {
   @include relative-font-size(0.9375);
-  font-family: "JetBrains Mono", "Consolas", "Monaco", "Menlo", "Ubuntu Mono",
-    monospace;
+  font-family: $code-font-family;
   border-radius: 6px;
   background-color: #f6f8fa;
-  color: #24292e;
+  color: #24292f;
 }
 
 code {
   padding: 0.2em 0.4em;
   font-size: 85%;
-  border-radius: 3px;
+  border-radius: 6px;
 }
 
 pre {
   padding: 16px;
   overflow-x: auto;
-  border: 1px solid #e1e4e8;
+  border: 1px solid #d0d7de;
 
   > code {
     border: 0;
@@ -190,11 +189,11 @@ pre {
 
 :not(pre) > code.highlighter-rouge {
   background-color: #f6f8fa;
-  color: #24292e;
+  color: #24292f;
   padding: 0.2em 0.4em;
-  border-radius: 3px;
+  border-radius: 6px;
   font-size: 85%;
-  border: none;
+  border: 1px solid #d0d7de;
 }
 
 /**

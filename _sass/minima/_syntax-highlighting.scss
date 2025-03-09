@@ -2,255 +2,263 @@
  * GitHub Light syntax highlighting styles
  */
 .highlight {
-  background: #0d1117;
+  background: #f6f8fa;
   @extend %vertical-rhythm;
 
-  * {
-    background-color: transparent !important;
-  }
-
   .highlighter-rouge & {
-    background: #0d1117;
+    background: #f6f8fa;
   }
 
   .c {
-    color: #8b949e;
+    color: #6e7781;
     font-style: italic;
   } // Comment
   .err {
-    color: #f85149;
+    color: #cf222e;
   } // Error
   .k {
-    color: #ff7b72;
+    color: #cf222e;
   } // Keyword
   .o {
-    color: #ff7b72;
+    color: #24292f;
   } // Operator
   .cm {
-    color: #8b949e;
+    color: #6e7781;
     font-style: italic;
   } // Comment.Multiline
   .cp {
-    color: #8b949e;
+    color: #6e7781;
     font-weight: bold;
   } // Comment.Preproc
   .c1 {
-    color: #8b949e;
+    color: #6e7781;
     font-style: italic;
   } // Comment.Single
   .cs {
-    color: #8b949e;
+    color: #6e7781;
     font-weight: bold;
     font-style: italic;
   } // Comment.Special
   .gd {
-    color: #ffa198;
-    background-color: #490202;
+    color: #82071e;
+    background-color: #ffebe9;
   } // Generic.Deleted
   .gd .x {
-    color: #ffa198;
-    background-color: #490202;
+    color: #82071e;
+    background-color: #ffebe9;
   } // Generic.Deleted.Specific
   .ge {
     font-style: italic;
   } // Generic.Emph
   .gr {
-    color: #ffa198;
+    color: #cf222e;
   } // Generic.Error
   .gh {
-    color: #c9d1d9;
+    color: #116329;
   } // Generic.Heading
   .gi {
-    color: #56d364;
-    background-color: #0f5323;
+    color: #116329;
+    background-color: #dafbe1;
   } // Generic.Inserted
   .gi .x {
-    color: #56d364;
-    background-color: #0f5323;
+    color: #116329;
+    background-color: #dafbe1;
   } // Generic.Inserted.Specific
   .go {
-    color: #8b949e;
+    color: #6e7781;
   } // Generic.Output
   .gp {
-    color: #8b949e;
+    color: #6e7781;
   } // Generic.Prompt
   .gs {
     font-weight: bold;
   } // Generic.Strong
   .gu {
-    color: #c9d1d9;
+    color: #6e7781;
   } // Generic.Subheading
   .gt {
-    color: #ff7b72;
+    color: #cf222e;
   } // Generic.Traceback
   .kc {
-    color: #ff7b72;
+    color: #cf222e;
   } // Keyword.Constant
   .kd {
-    color: #ff7b72;
+    color: #cf222e;
   } // Keyword.Declaration
+  .kn {
+    color: #cf222e;
+  } // Keyword.Namespace
   .kp {
-    color: #ff7b72;
+    color: #cf222e;
   } // Keyword.Pseudo
   .kr {
-    color: #ff7b72;
+    color: #cf222e;
   } // Keyword.Reserved
   .kt {
-    color: #ff7b72;
+    color: #cf222e;
   } // Keyword.Type
   .m {
-    color: #d2a8ff;
+    color: #0550ae;
   } // Literal.Number
   .s {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String
   .na {
-    color: #7ee787;
+    color: #8250df;
   } // Name.Attribute
   .nb {
-    color: #c9d1d9;
+    color: #953800;
   } // Name.Builtin
   .nc {
-    color: #f0883e;
+    color: #953800;
     font-weight: bold;
   } // Name.Class
   .no {
-    color: #79c0ff;
+    color: #0550ae;
   } // Name.Constant
   .ni {
-    color: #c9d1d9;
+    color: #24292f;
   } // Name.Entity
   .ne {
-    color: #f0883e;
+    color: #953800;
     font-weight: bold;
   } // Name.Exception
   .nf {
-    color: #d2a8ff;
+    color: #8250df;
     font-weight: normal;
   } // Name.Function
+  .nl {
+    color: #24292f;
+  } // Name.Label
   .nn {
-    color: #c9d1d9;
+    color: #24292f;
   } // Name.Namespace
+  .nx {
+    color: #24292f;
+  } // Name.Other
+  .py {
+    color: #24292f;
+  } // Name.Property
   .nt {
-    color: #7ee787;
+    color: #116329;
   } // Name.Tag
   .nv {
-    color: #79c0ff;
+    color: #0550ae;
   } // Name.Variable
   .ow {
-    color: #ff7b72;
+    color: #cf222e;
   } // Operator.Word
   .w {
-    color: #6e7681;
+    color: #6e7781;
   } // Text.Whitespace
   .mf {
-    color: #d2a8ff;
+    color: #0550ae;
   } // Literal.Number.Float
   .mh {
-    color: #d2a8ff;
+    color: #0550ae;
   } // Literal.Number.Hex
   .mi {
-    color: #d2a8ff;
+    color: #0550ae;
   } // Literal.Number.Integer
   .mo {
-    color: #d2a8ff;
+    color: #0550ae;
   } // Literal.Number.Oct
   .sb {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Backtick
   .sc {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Char
   .sd {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Doc
   .s2 {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Double
   .se {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Escape
   .sh {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Heredoc
   .si {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Interpol
   .sx {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Other
   .sr {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Regex
   .s1 {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Single
   .ss {
-    color: #a5d6ff;
+    color: #0a3069;
   } // Literal.String.Symbol
   .bp {
-    color: #c9d1d9;
+    color: #953800;
   } // Name.Builtin.Pseudo
   .vc {
-    color: #79c0ff;
+    color: #0550ae;
   } // Name.Variable.Class
   .vg {
-    color: #79c0ff;
+    color: #0550ae;
   } // Name.Variable.Global
   .vi {
-    color: #79c0ff;
+    color: #0550ae;
   } // Name.Variable.Instance
   .il {
-    color: #d2a8ff;
+    color: #0550ae;
   } // Literal.Number.Integer.Long
 
   // 코드 블록 내 텍스트 기본 색상
-  color: #c9d1d9;
+  color: #24292f;
 
   // 코드 블록 테두리 및 둥근 모서리
   border-radius: 6px;
-  border: 1px solid #30363d;
+  border: 1px solid #d0d7de;
 
   // 코드 블록 내부 패딩
   pre {
     padding: 16px;
     overflow: auto;
-    background-color: #0d1117;
+    background-color: #f6f8fa;
   }
 
   // 코드 블록 내 선택 영역 스타일
   ::selection {
-    background-color: #3b5070;
+    background-color: #ddf4ff;
   }
 }
 
 // 코드 블록 글꼴 설정
 code,
 pre {
-  font-family: "JetBrains Mono", "Consolas", "Monaco", "Menlo", "Ubuntu Mono",
-    monospace;
+  font-family: $code-font-family;
   font-size: 14px;
   line-height: 1.5;
 }
 
-// 파일명 표시 스타일 개선
+// 파일명 표시 스타일
 .highlight .filename {
-  background-color: #161b22;
-  color: #8b949e;
-  border-bottom: 1px solid #30363d;
+  background-color: #f6f8fa;
+  color: #57606a;
+  border-bottom: 1px solid #d0d7de;
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;
   padding: 8px 16px;
-  font-family: "JetBrains Mono", "Consolas", "Monaco", monospace;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    monospace;
   font-size: 12px;
 }
 
 // 코드 블록 내 줄 번호 스타일 (선택적)
 .highlight .lineno {
-  color: #6e7681;
+  color: #6e7781;
   display: inline-block;
   padding: 0 5px;
-  border-right: 1px solid #30363d;
+  border-right: 1px solid #d0d7de;
   margin-right: 10px;
   text-align: right;
   user-select: none;
@@ -258,9 +266,10 @@ pre {
 
 // 인라인 코드 스타일 추가
 code.highlighter-rouge {
-  background-color: #161b22;
-  color: #c9d1d9;
+  background-color: #f6f8fa;
+  color: #24292f;
   padding: 0.2em 0.4em;
-  border-radius: 3px;
+  border-radius: 6px;
   font-size: 85%;
+  border: 1px solid #d0d7de;
 }
