@@ -1,5 +1,5 @@
 ---
-title: 비즈니스 로직과 테스트 코드에서의 트랜잭션 처리 방식 비교하기
+title: 비즈니스 로직에서 테스트 코드까지의 트랜잭션 전파 방식 비교하기
 lang: ko
 layout: post
 ---
@@ -32,4 +32,70 @@ layout: post
 - `R.m2()`에만 `@Transactional`이 있습니다.
 - `S.m1()`과 `R.m2()` 모두에 `@Transactional`이 있습니다.
 
-우선, 기본값으로 지정된 `@Transactional(propagation=Propagation.REQUIRED)`에 대해 세 가지 경우를 살펴본 다음 `@Transactional` 어노테이션에 대해서 깊게 살펴보겠습니다.
+우선, 기본값으로 지정된 `@Transactional(propagation=Propagation.REQUIRED)`에 대해 세 가지 경우를 살펴본 다음 `@Transactional` 어노테이션에 대해서 깊게 들어가보겠습니다. 그 전에, 먼저 `@Transactional` 어노테이션의 기본 동작을 살펴보겠습니다.
+
+## @Transactional 동작 이해하기
+
+저는 구체적인 동작을 살펴보기 전에, 한 가지 잊어서는 안되는 사실을 말하고 싶습니다. 바로 어노테이션은 마법처럼 동작을 진행해주는 주문이 아니라, 구현되어 있는 코드의 집합으로 동작한다는 사실입니다.
+
+### @Transactional 어노테이션 코드
+
+예를 들어, `@Transactional` 어노테이션은 다음과 같은 코드로 구현되어 있습니다.
+
+```java
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+@Documented
+@Reflective
+public @interface Transactional {
+
+    // 트랜잭션 관리자 지정
+	@AliasFor("transactionManager")
+	String value() default "";
+
+	@AliasFor("value")
+	String transactionManager() default "";
+
+    // 트랜잭션에 모니터링이나 디버깅을 위한 레이블 지정
+	String[] label() default {};
+
+    // 트랜잭션 전파 방식 지정
+	Propagation propagation() default Propagation.REQUIRED;
+
+    // 트랜잭션 격리 수준 설정
+	Isolation isolation() default Isolation.DEFAULT;
+
+    // 트랜잭션 타임아웃 설정
+	int timeout() default TransactionDefinition.TIMEOUT_DEFAULT;
+
+    // 트랜잭션 타임아웃 문자열 설정
+	String timeoutString() default "";
+
+    // 트랜잭션 읽기 전용 여부 설정
+	boolean readOnly() default false;
+
+    // 롤백 대상 클래스 지정 (클래스)
+	Class<? extends Throwable>[] rollbackFor() default {};
+
+    // 롤백 대상 클래스 이름 지정 (문자열)
+	String[] rollbackForClassName() default {};
+
+    // 롤백 대상 예외 클래스 이름 지정 (클래스)
+	Class<? extends Throwable>[] noRollbackFor() default {};
+
+    // 롤백 대상 예외 클래스 이름 지정 (문자열)
+	String[] noRollbackForClassName() default {};
+
+}
+```
+
+메타 어노테이션에 대한 깊은 설명은 `@Transactional`에 관한 주제에서 벗어나니, 간단하게만 살펴보겠습니다.
+
+- 클래스와 메서드에 사용 가능함 (`@Target({ElementType.TYPE, ElementType.METHOD})`)
+- 런타임 시점에 동작함 (`@Retention(RetentionPolicy.RUNTIME)`)
+- 상속된 클래스에서도 어노테이션을 유지함 (`@Inherited`)
+- JavaDoc에 문서화가 되어있음 (`@Documented`)
+- 리플렉션을 요구함 (`@Reflective`)
+
+메서드에 대한 설명은 각 메서드 위에 원본 영문 주석을 지우고 요약본으로 적어두었습니다. 메서드 중에서 오늘 질문의 대상은 바로 `propagation` 옵션입니다. (`isolation`은 이번 글에서 다루지 않겠습니다.)
