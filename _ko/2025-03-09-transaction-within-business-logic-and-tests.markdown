@@ -1,5 +1,5 @@
 ---
-title: 비즈니스 로직에서 테스트 코드까지의 트랜잭션 전파 방식 비교하기
+title: 비즈니스 로직에서 테스트까지의 Spring 트랜잭션 (1) - @Transactional
 lang: ko
 layout: post
 ---
@@ -10,7 +10,11 @@ layout: post
 
 - 이후 Pull Reqeust 내 코드에서 서비스 클래스 코드와 구체적 전략 코드 일부에 `@Transactional` 어노테이션이 붙어있음에 대한 질문이 들어왔습니다. 추가로, `@DataJpaTest`에 대해서도 설명하며 트랜잭션을 함께 살펴보게 되었습니다.
 
-- 최종 수정일: 25/03/10
+- Spring AOP가 관여하는 부분에 대한 코드는 트랜잭션에 대한 설명을 넘어서는 것 같아, 의도적으로 배제했습니다.
+
+- (1)에서는 주로 `@Transactional` 어노테이션이 동작하는 방식과 그를 구성하는 Spring Transaction에서의 핵심적인 작동을 살펴봅니다.
+
+- 최종 수정일: 25/03/16
 
 ## @Transactional에 대한 질문
 
@@ -18,21 +22,11 @@ layout: post
 
 서비스 클래스의 메서드에도 `@Transactional`이 있고, 해당 메서드에서 이용하는 전략 클래스의 메서드에도 `@Transactional`이 왜 있나요? 동작이 다른가요? `@DataJpaTest`가 붙은 테스트 클래스 내의 메서드에서는 왜 `@Transactional`의 옵션이 `NOT_SUPPORTED`인가요?
 
-### 질문에서 시작하기
+### 기초에서 시작하기
 
-이는 코드에서 `@Transactional` 어노테이션을 잘못 남겨뒀기 때문에 받은 질문인데요. 그 덕에 팀원과 함께 `@Transactional` 어노테이션과 Spring에서의 트랜잭션을 이해하는 계기가 되었습니다.
+이는 코드에서 `@Transactional` 어노테이션을 잘못 남겨뒀기 때문에 받은 질문인데요. 특히, 제가 이후 동작에 관해 제대로 설명하지 못했던 기억이 납니다. 그 덕에 팀원과 함께 `@Transactional` 어노테이션과 Spring에서의 트랜잭션을 학습하며 이해하는 계기가 되었습니다.
 
-### 상황 가정
-
-서비스 S와 레포지토리 R이 있고, S의 메서드 `S.m1()`에서 `R.m2()`를 호출한다고 생각해봅시다.
-
-다음과 같은 세 가지 경우를 떠올릴 수 있는데요.
-
-- `S.m1()`에만 `@Transactional`이 있습니다.
-- `R.m2()`에만 `@Transactional`이 있습니다.
-- `S.m1()`과 `R.m2()` 모두에 `@Transactional`이 있습니다.
-
-우선, 기본값으로 지정된 `@Transactional(propagation=Propagation.REQUIRED)`에 대해 세 가지 경우를 살펴본 다음 `@Transactional` 어노테이션에 대해서 깊게 들어가보겠습니다. 그 전에, 먼저 `@Transactional` 어노테이션의 기본 동작을 살펴보겠습니다.
+이번 글에서는 `@Transactional` 어노테이션의 동작에 대해 점층적으로 살펴보겠습니다. 이후 다음 글에서는 실제로 저희 비즈니스 로직과 테스트 코드에서 트랜잭션이 어떻게 관리되었는지 비판적으로 살펴보겠습니다. 이번 글은 이를 위한 기초 작업이라고 생각해주시면 감사하겠습니다.
 
 ## @Transactional 동작 이해하기
 
@@ -166,7 +160,7 @@ Spring 프레임워크에서 `propagation` 옵션은 트랜잭션 전파 방식�
 
 ## @Transactional 깊이 살펴보기
 
-### 트랜잭션은 어떻게 생성되는가?
+### 트랜잭션의 생명주기
 
 #### 1. TransactionalInterceptor의 호출 가로채기
 
@@ -216,7 +210,7 @@ protected @Nullable Object invokeWithinTransaction(Method method, @Nullable Clas
 
 이후 `TransactionManager tm`은 트랜잭션 시작, 커밋, 롤백을 관리하도록 역할을 위임받습니다.
 
-#### 3. invokeWithinTransaction() - 트랜잭션 정보 생성
+#### 3. invokeWithinTransaction() - 트랜잭션 정보 생성 및 트랜잭션 시작
 
 ```java
 TransactionInfo txInfo = createTransactionIfNecessary(ptm, txAttr, joinpointIdentification);
@@ -229,6 +223,7 @@ TransactionInfo txInfo = createTransactionIfNecessary(ptm, txAttr, joinpointIden
 `TransactionStatus` 객체는 `tm.getTransaction()` 메서드를 호출해 생성됩니다. 이 메서드는 내부적으로 구체적인 트랜잭션 매니저의 `doGetTransaction()` 메서드를 이용합니다. 대표적으로 `DataSourceTransactionManager` 클래스 구현체의 코드는 아래와 같습니다.
 
 ```java
+// DataSourceTransactionManager.java
 @Override
 protected Object doGetTransaction() {
   DataSourceTransactionObject txObject = new DataSourceTransactionObject();
@@ -240,7 +235,22 @@ protected Object doGetTransaction() {
 }
 ```
 
-이렇게 생성된 status는 이후 최종으로 호출되는 return 문에서 내부적으로 `prepareTransactionInfo()` 메서드에서 이용됩니다.
+이후 `tm.getTransaction()` 메서드는 내부에서 반환된 `txObject`를 인자 중 하나로 받는 `startTransaction()` 메서드를 호출합니다. `startTransaction()` 메서드는 내부적으로 구현체에 동작을 위임하는 `doBegin()` 메서드를 이용해 트랜잭션을 생성하고 시작하며, `TransactionStatus` 객체를 생성합니다.
+
+```java
+// DataSourceTransactionManager.java
+@Override
+protected void doBegin(Object transaction, TransactionDefinition definition) {
+  DataSourceTransactionObject txObject = (DataSourceTransactionObject) transaction;
+  Connection con = null;
+
+  // 생략: connection 객체 생성 및 할당, 예외 처리, timeout 설정, readonly 설정 등
+}
+```
+
+`startTransaction()`에서는 `doBegin()` 이후 `AbstractPlatformTransactionManager` 클래스의 `prepareSynchronization()` 메서드를 통해 트랜잭션 동기화가 준비됩니다. 여기에서는 `TransactionSynchronizationManager`를 이용해 스레드 내에서 트랜잭션 활성 상태, 격리 수준, 읽기 전용, 동기화 초기화 등을 설정합니다.
+
+`startTransaction()`의 반환값으로 나오는 `TransactionStatus` 객체는 이후 `invokeWithinTransaction()`에서 최종으로 호출되는 return 문에서 내부적으로 `prepareTransactionInfo()` 메서드에서 이용됩니다.
 
 ```java
 protected TransactionInfo prepareTransactionInfo(@Nullable PlatformTransactionManager tm,
@@ -271,9 +281,9 @@ protected TransactionInfo prepareTransactionInfo(@Nullable PlatformTransactionMa
 }
 ```
 
-만약 트랜잭션이 필요하다면 `TransactionInfo` 객체를 생성하고 트랜잭션 상태를 설정합니다.
+트랜잭션이 필요하다면 `TransactionInfo` 객체를 생성하고 트랜잭션 상태를 설정합니다.
 
-만약 트랜잭션이 필요하지 않다면 트랜잭션 정보를 생성하지 않고 비어있는 `TransactionInfo` 객체를 반환합니다.
+트랜잭션이 필요하지 않다면 트랜잭션 정보를 생성하지 않고 비어있는 `TransactionInfo` 객체를 반환합니다.
 
 이어서 `txInfo.newTransactionStatus()` 메서드와 `txInfo.bindToThread()` 메서드를 호출합니다.
 
@@ -315,7 +325,7 @@ public class DefaultTransactionStatus extends AbstractTransactionStatus {
 
 앞서 살펴본 `DataSourceTransactionManager` 클래스의 `doGetTransaction()` 메서드에서 생성된 `DataSourceTransactionObject` 객체가 이 필드에 저장된다고 볼 수 있습니다.
 
-#### 5. txInfo.bindToThread()
+#### 5. txInfo.bindToThread() - 트랜잭션 정보 바인딩
 
 이후 `txInfo.bindToThread()` 메서드는 `TransactionInfo` 객체를 현재 스레드에 바인딩합니다.
 
@@ -349,4 +359,222 @@ private static final ThreadLocal<TransactionInfo> transactionInfoHolder =
 
 `ThreadLocal`을 이용함으로써 Spring Transaction은 트랜잭션 컨텍스트의 흐름을 유연하게 관리하도록 돕는다고 말할 수 있겠습니다. 이는 이후 테스트 메서드를 함께 살펴볼 때 더 자세히 다루겠습니다.
 
-#### 6.
+#### 6. 다시 invokeWithinTransaction() - 비즈니스 로직 실행
+
+스레드 로컬에 트랜잭션 컨텍스트가 설정되고 바인딩되면, 다음 인터셉터로 작업은 넘어갑니다.
+
+만약 인터셉터 체인에서 더 이상 실행할 인터셉터가 없다면, 실제 클래스의 타겟 메서드를 호출합니다. 즉, 최종적으로 비즈니스 로직을 실행하고 그 결과가 반환됩니다.
+
+```java
+// This is an around advice: Invoke the next interceptor in the chain.
+				// This will normally result in a target object being invoked.
+      retVal = invocation.proceedWithInvocation();
+```
+
+이 과정에서는 Spring AOP에서 `invocation.proceedWithInvocation()` 메서드를 이용합니다. 이 `invocation`은 처음 람다식으로 넘겨낸 함수형 인터페이스 인자입니다.
+
+#### 7. invokeWithinTransaction() - 트랜잭션 커밋/롤백 (트랜잭션 종료)
+
+```java
+// TransactionAspectSupport.java
+// 둘러싸는 부분 생략
+
+Object retVal;
+try {
+  // This is an around advice: Invoke the next interceptor in the chain.
+  // This will normally result in a target object being invoked.
+  retVal = invocation.proceedWithInvocation();
+}
+catch (Throwable ex) {
+  // target invocation exception
+  completeTransactionAfterThrowing(txInfo, ex);
+  throw ex;
+}
+finally {
+  cleanupTransactionInfo(txInfo);
+}
+```
+
+이 코드에서 `retVal`에는 실제 비즈니스 로직을 실행한 값이 최종적으로 저장될 것입니다.
+
+이후 `completeTransactionAfterThrowing()` 메서드는 예외가 발생한 경우 설정에 따라 트랜잭션을 롤백하고, 예외가 발생하지 않은 경우 트랜잭션을 커밋합니다. 자세한 코드는 아래와 같습니다.
+
+```java
+// TransactionAspectSupport.java
+// 둘러싸는 부분 생략
+
+if (txInfo.transactionAttribute != null && txInfo.transactionAttribute.rollbackOn(ex)) {
+    try {
+      // 이 부분에서 트랜잭션 매니저의 rollback() 메서드를 호출합니다.
+      txInfo.getTransactionManager().rollback(txInfo.getTransactionStatus());
+    }
+    catch (TransactionSystemException ex2) {
+      // ...
+    }
+    catch (RuntimeException | Error ex2) {
+      // ...
+    }
+  }
+else {
+  // We don't roll back on this exception.
+  // Will still roll back if TransactionStatus.isRollbackOnly() is true.
+  try {
+    // 이 부분에서 트랜잭션 매니저의 commit() 메서드를 호출합니다.
+    txInfo.getTransactionManager().commit(txInfo.getTransactionStatus());
+  }
+  catch (TransactionSystemException ex2) {
+    // ...
+  }
+  catch (RuntimeException | Error ex2) {
+    // ...
+  }
+}
+```
+
+여기에서 `rollback()`과 `commit()`은 추상 클래스 `AbstractPlatformTransactionManager`에서 정의된 메서드로, 메서드의 수행을 하위 클래스에 위임합니다.
+
+따라서 `DataSourceTransactionManager` 클래스의 경우에 이용되는 `doRollback()` 메서드와 `doCommit()` 메서드는 다음과 같습니다.
+
+```java
+// DataSourceTransactionManager.java
+@Override
+protected void doRollback(DefaultTransactionStatus status) {
+  DataSourceTransactionObject txObject = (DataSourceTransactionObject) status.getTransaction();
+  Connection con = txObject.getConnectionHolder().getConnection();
+  if (status.isDebug()) {
+    logger.debug("Rolling back JDBC transaction on Connection [" + con + "]");
+  }
+  try {
+    con.rollback();
+  }
+  catch (SQLException ex) {
+    throw translateException("JDBC rollback", ex);
+  }
+}
+```
+
+```java
+// DataSourceTransactionManager.java
+@Override
+protected void doCommit(DefaultTransactionStatus status) {
+  DataSourceTransactionObject txObject = (DataSourceTransactionObject) status.getTransaction();
+  Connection con = txObject.getConnectionHolder().getConnection();
+  if (status.isDebug()) {
+    logger.debug("Committing JDBC transaction on Connection [" + con + "]");
+  }
+  try {
+    con.commit();
+  }
+  catch (SQLException ex) {
+    throw translateException("JDBC commit", ex);
+  }
+}
+```
+
+이러한 하위 구현체의 코드를 이용해 `AbstractPlatformTransactionManager` 클래스의 `rollback()`과 `commit()` 메서드는 세이브 포인트 및 롤백 설정, 예외에 따라 트랜잭션을 커밋하거나 롤백합니다.
+
+#### 8. cleanupAfterCompletion() - 트랜잭션 리소스 정리
+
+`AbstractPlatformTransactionManager` 클래스는 `rollback()`과 `commit()` 메서드 종료 후 finally 블록에서 `cleanupAfterCompletion()`을 호출하는데요.
+
+이는 하위 구현체의 `doCleanupAfterCompletion()` 메서드를 호출합니다. 이번에도 `DataSourceTransactionManager` 클래스의 코드를 이용해 살펴보겠습니다.
+
+```java
+@Override
+protected void doCleanupAfterCompletion(Object transaction) {
+  DataSourceTransactionObject txObject = (DataSourceTransactionObject) transaction;
+
+  // Remove the connection holder from the thread, if exposed.
+  if (txObject.isNewConnectionHolder()) {
+    TransactionSynchronizationManager.unbindResource(obtainDataSource());
+  }
+
+  // Reset connection.
+  Connection con = txObject.getConnectionHolder().getConnection();
+  try {
+    if (txObject.isMustRestoreAutoCommit()) {
+      con.setAutoCommit(true);
+    }
+    DataSourceUtils.resetConnectionAfterTransaction(
+        con, txObject.getPreviousIsolationLevel(), txObject.isReadOnly());
+  }
+  catch (Throwable ex) {
+    logger.debug("Could not reset JDBC Connection after transaction", ex);
+  }
+
+  if (txObject.isNewConnectionHolder()) {
+    if (logger.isDebugEnabled()) {
+      logger.debug("Releasing JDBC Connection [" + con + "] after transaction");
+    }
+    DataSourceUtils.releaseConnection(con, this.dataSource);
+  }
+
+  txObject.getConnectionHolder().clear();
+}
+```
+
+먼저 매개변수로 전달된 `transaction` 객체를 타입 캐스팅합니다.
+
+만약 트랜잭션에서 새로 생성된 커넥션이라면 데이터 소스와 연결 홀더의 바인딩을 해제합니다. 여기에서 이 바인딩이라 함은, `TransactionSynchronizationManager`가 `ThreadLocal<Map<Object, Object>> resources` 형태로 저장하는 매핑을 의미합니다. 이 Map에서 키는 `DataSource` 객체이고 값은 `ConnectionHolder` 객체입니다. 이 바인딩을 해제한다는 것은 물리적인 데이터베이스와의 연결이 아니라, Spring 트랜잭션 내에서의 현재 스레드와 데이터 소스 간 논리적 연결을 해제함을 의미합니다. 이후에는 연결 상태를 초기화하고, autocommit도 다시 true도 되돌립니다.
+
+여기에서 커넥션을 새로 생성했다면 이를 해제하고, 다시 커넥션 풀로 반환해 물리적인 자원을 해제합니다.
+
+- 새로 생성된 커넥션을 사용하는 경우
+
+  - 최초 트랜잭션 시작 (REQUIRED의 첫 호출)
+  - REQUIRES_NEW: 항상 새 커넥션을 생성하므로 완전히 정리
+  - NOT_SUPPORTED: 트랜잭션 없이 실행되지만, 필요시 새 커넥션 사용 후 정리
+
+- 기존 커넥션을 사용하는 경우
+
+  - REQUIRED (참여하는 경우): 기존 커넥션 유지, 트랜잭션 상태만 정리
+  - SUPPORTS, MANDATORY: 기존 커넥션 유지, 트랜잭션 상태만 정리
+  - NESTED: 세이브포인트 관련 리소스만 정리, 기존 커넥션 유지
+
+#### 9. cleanUpTransactionInfo() - 트랜잭션 컨텍스트 정리
+
+이제 7. 에서 살펴보았던 finally 블록 안의 코드를 이용해 트랜잭션 정보를 정리합니다.
+
+```java
+finally {
+  cleanupTransactionInfo(txInfo);
+}
+```
+
+`cleanupTransactionInfo()` 메서드는 다음과 같이 구성되어 있습니다.
+
+```java
+// TransactionAspectSupport.java
+protected void cleanupTransactionInfo(@Nullable TransactionInfo txInfo) {
+  if (txInfo != null) {
+    txInfo.restoreThreadLocalStatus();
+  }
+}
+
+// TransactionAspectSupport의 static class TransactionInfo
+private void restoreThreadLocalStatus() {
+  // Use stack to restore old transaction TransactionInfo.
+  // Will be null if none was set.
+  transactionInfoHolder.set(this.oldTransactionInfo);
+}
+```
+
+내부적으로 `TransactionInfo` 인스턴스 내 `oldTransactionInfo` 필드에 저장된 `TransactionInfo` 객체를 복원합니다. 즉, 현재 트랜잭션이 시작되기 전의 트랜잭션 정보가 복구되는데요.
+
+이를 통해 중첩 트랜잭션이 종료되면 외부 트랜잭션 정보가 복원되며, 가장 외부 트랜잭션이 종료되면 null이 설정되어서 트랜잭션 컨텍스트가 정리됩니다.
+
+결국 ThreadLocal 내의 `TransactionInfo` 객체가 null로 교체되는 것인데요. Spring Transaction에서는 `TransactionInfo` 내의 `TransactionStatus`를 이용해 컨텍스트 존재 여부를 확인하므로 결국 트랜잭션 컨텍스트가 정리되는 셈입니다.
+
+여기서 트랜잭션 컨텍스트가 정리된다는 것은 Spring의 트랜잭션 관리 시스템에서 현재 스레드에 활성 트랜잭션이 없음을 나타내는 상태가 되며, 이후 새로운 트랜잭션이 시작될 수 있는 상태가 준비되어 있음을 의미합니다.
+
+## 나가며
+
+이번 글에서는 `@Transactional` 어노테이션을 중심으로 어노테이션의 기본적인 동작과 함께, Spring Transaction에서 트랜잭션의 생명주기와 작동 방식을 살펴보았습니다.
+
+다음 글에서는 `@DataJpaTest` 어노테이션이 생성하는 트랜잭션과 함께, 내부적으로 이용되는 `@Transactional` 어노테이션이 어떻게 상호작용하는지 살펴보겠습니다.
+
+게다가 아직 새롭게 던져야 할 질문도 있습니다. 트랜잭션 매니저는 어떻게 선정되는 걸까요? 테스트 코드에서 JPA와 JDBC가 한 번에 이용된다면 어떻게 될까요?
+
+테스트 코드에서의 Spring Transaction이 어떻게 `ThreadLocal`을 이용하는지도 다음 글에서 다뤄보겠습니다.
+
+긴 글 읽어주셔서 감사합니다. 다음 글도 잘 읽어주세요!
