@@ -151,7 +151,7 @@ Spring 프레임워크에서 `propagation` 옵션은 트랜잭션 전파 방식�
 #### 3. 트랜잭션 시작
 
 - `PlatformTransactionManager` 인터페이스 구현체는 새로운 트랜잭션을 시작하거나 기존 트랜잭션에 참여합니다.
-- JDBC 연결을 이용하는 트랜잭션 메니저는 커넥션을 획득한 뒤 auto-commit을 false로 설정합니다.
+- JDBC 연결을 이용하는 트랜잭션 매니저는 커넥션을 획득한 뒤 auto-commit을 false로 설정합니다.
 
 #### 4. 비즈니스 로직 실행
 
@@ -163,3 +163,190 @@ Spring 프레임워크에서 `propagation` 옵션은 트랜잭션 전파 방식�
 - 비즈니스 로직 메서드가 정상적으로 완료되면 트랜잭션을 커밋합니다.
 - 예외가 발생하면 롤백을 수행합니다 (rollbackFor 설정에 따라 다릅니다.)
 - 사용한 데이터베이스 리소스를 정리합니다.
+
+## @Transactional 깊이 살펴보기
+
+### 트랜잭션은 어떻게 생성되는가?
+
+#### 1. TransactionalInterceptor의 호출 가로채기
+
+먼저, `@Transactional` 어노테이션이 붙은 메서드의 프록시 객체는 TransactionInterceptor를 어드바이스로 이용합니다.
+
+```java
+public class TransactionInterceptor extends TransactionAspectSupport implements MethodInterceptor, Serializable {
+
+  // ...
+
+  @Override
+  public @Nullable Object invoke(MethodInvocation invocation) throws Throwable {
+
+    Class<?> targetClass = (invocation.getThis() != null ? AopUtils.getTargetClass(invocation.getThis()) : null);
+
+    return invokeWithinTransaction(invocation.getMethod(), targetClass, invocation::proceed);
+  }
+
+}
+```
+
+`invoke()`는 Spring AOP에서의 `MethodInterceptor` 인터페이스의 계약인데요. 이 메서드를 통해서 `@Transactional`이 붙은 메서드가 호출될 때 Spring AOP 프록시에 의해 실행되는 메서드입니다.
+
+위에서 나타나는 `invokeWithinTransaction()` 메서드는 `TransactionInterceptor` 클래스가 상속하는 추상 클래스 `TransactionAspectSupport`에서 트랜잭션 공통 처리를 제공하기 위한 메서드입니다.
+
+#### 2. invokeWithinTransaction() - 속성 추출 및 매니저 결정
+
+```java
+// 이후 메서드명 생략
+protected @Nullable Object invokeWithinTransaction(Method method, @Nullable Class<?> targetClass,
+    final InvocationCallback invocation) throws Throwable {
+
+  // If the transaction attribute is null, the method is non-transactional.
+  TransactionAttributeSource tas = getTransactionAttributeSource();
+  final TransactionAttribute txAttr = (tas != null ? tas.getTransactionAttribute(method, targetClass) : null);
+  final TransactionManager tm = determineTransactionManager(txAttr, targetClass);
+
+  // ...
+}
+```
+
+`invokeWithinTransaction()` 메서드는 리플렉션을 활용해 호출된 메서드의 트랜잭션 속성을 추출합니다.
+
+`TransactionAttributeSource`는 트랜잭션 속성을 추출하는 인터페이스입니다. 이 인터페이스는 메서드 레벨에서 트랜잭션 속성을 정의할 수 있도록 합니다.
+
+그리고 `determineTransactionManager()` 메서드는 트랜잭션 매니저가 어노테이션에서 지정되지 않았다면 적절한 트랜잭션 매니저를 결정합니다. 기본 트랜잭션 매니저로는 `PlatformTransactionManager`의 구현체가 이용됩니다.
+
+이후 `TransactionManager tm`은 트랜잭션 시작, 커밋, 롤백을 관리하도록 역할을 위임받습니다.
+
+#### 3. invokeWithinTransaction() - 트랜잭션 정보 생성
+
+```java
+TransactionInfo txInfo = createTransactionIfNecessary(ptm, txAttr, joinpointIdentification);
+```
+
+`createTransactionIfNecessary()` 메서드는 트랜잭션 속성과 트랜잭션 매니저를 이용해 트랜잭션 정보를 생성합니다.
+
+만약 트랜잭션 속성 `TransactionAttribute txAttr`이 존재하고 트랜잭션 매니저가 설정된 경우에만 트랜잭션을 시작합니다.
+
+`TransactionStatus` 객체는 `tm.getTransaction()` 메서드를 호출해 생성됩니다. 이 메서드는 내부적으로 구체적인 트랜잭션 매니저의 `doGetTransaction()` 메서드를 이용합니다. 대표적으로 `DataSourceTransactionManager` 클래스 구현체의 코드는 아래와 같습니다.
+
+```java
+@Override
+protected Object doGetTransaction() {
+  DataSourceTransactionObject txObject = new DataSourceTransactionObject();
+  txObject.setSavepointAllowed(isNestedTransactionAllowed());
+  ConnectionHolder conHolder =
+      (ConnectionHolder) TransactionSynchronizationManager.getResource(obtainDataSource());
+  txObject.setConnectionHolder(conHolder, false);
+  return txObject;
+}
+```
+
+이렇게 생성된 status는 이후 최종으로 호출되는 return 문에서 내부적으로 `prepareTransactionInfo()` 메서드에서 이용됩니다.
+
+```java
+protected TransactionInfo prepareTransactionInfo(@Nullable PlatformTransactionManager tm,
+        @Nullable TransactionAttribute txAttr, String joinpointIdentification,
+        @Nullable TransactionStatus status) {
+
+    // TransactionInfo 객체는 항상 생성
+    TransactionInfo txInfo = new TransactionInfo(tm, txAttr, joinpointIdentification);
+
+    // 트랜잭션 속성 txAttr이 존재하면
+    if (txAttr != null) {
+        if (logger.isTraceEnabled()) {
+            logger.trace("Getting transaction for [" + txInfo.getJoinpointIdentification() + "]");
+        }
+        txInfo.newTransactionStatus(status);
+    }
+    // 트랜잭션 속성 txAttr이 null이면
+    else {
+        if (logger.isTraceEnabled()) {
+            logger.trace("No need to create transaction for [" + joinpointIdentification +
+                    "]: This method is not transactional.");
+        }
+    }
+
+    // 항상 비어있든 아니든 TransactionInfo를 현재 스레드에 바인딩
+    txInfo.bindToThread();
+    return txInfo;
+}
+```
+
+만약 트랜잭션이 필요하다면 `TransactionInfo` 객체를 생성하고 트랜잭션 상태를 설정합니다.
+
+만약 트랜잭션이 필요하지 않다면 트랜잭션 정보를 생성하지 않고 비어있는 `TransactionInfo` 객체를 반환합니다.
+
+이어서 `txInfo.newTransactionStatus()` 메서드와 `txInfo.bindToThread()` 메서드를 호출합니다.
+
+### 4. txInfo.newTransactionStatus() - 트랜잭션 상태 설정
+
+`TransactionInfo` 객체는 인자로 받은 `TransactionStatus` 객체를 이용해 트랜잭션 상태를 새로 설정합니다. 대표적인 구현체로 `DefaultTransactionStatus` 클래스를 이용합니다.
+
+```java
+public class DefaultTransactionStatus extends AbstractTransactionStatus {
+
+  // 트랜잭션 이름
+	private final @Nullable String transactionName;
+
+  // 실제 트랜잭션 객체
+	private final @Nullable Object transaction;
+
+  // 트랜잭션 새로 시작 여부 - 메서드 종료시 커밋 / 롤백 여부 결정
+	private final boolean newTransaction;
+
+  // 트랜잭션 동기화 설정 여부
+	private final boolean newSynchronization;
+
+  // 중첩 트랜잭션 여부
+	private final boolean nested;
+
+  // 읽기 전용 여부
+	private final boolean readOnly;
+
+  // 디버그 모드 여부
+	private final boolean debug;
+
+  // 트랜잭션 시작을 위해 보류된 트랜잭션 리소스 (REQUIRES_NEW 전파 옵션 사용 시)
+	private final @Nullable Object suspendedResources;
+
+  // 메서드
+```
+
+여기에서 `Object` 타입 필드인 `transaction` 필드는 실제 트랜잭션 객체를 저장합니다. 대표적으로 `TransactionManager` 구현체인 `DataSourceTransactionManager` 클래스의 `doBegin()` 메서드에서 이용됩니다.
+
+앞서 살펴본 `DataSourceTransactionManager` 클래스의 `doGetTransaction()` 메서드에서 생성된 `DataSourceTransactionObject` 객체가 이 필드에 저장된다고 볼 수 있습니다.
+
+#### 5. txInfo.bindToThread()
+
+이후 `txInfo.bindToThread()` 메서드는 `TransactionInfo` 객체를 현재 스레드에 바인딩합니다.
+
+```java
+// TransactionInfo 클래스 내부 메서드
+
+private void bindToThread() {
+  // Expose current TransactionStatus, preserving any existing TransactionStatus
+  // for restoration after this transaction is complete.
+  this.oldTransactionInfo = transactionInfoHolder.get();
+  transactionInfoHolder.set(this);
+}
+```
+
+```java
+private static final ThreadLocal<TransactionInfo> transactionInfoHolder =
+			new NamedThreadLocal<>("Current aspect-driven transaction");
+```
+
+또한, `NamedThreadLocal` 클래스는 `ThreadLocal` 클래스에 toString() 메서드만 오버라이드하여 내부 검사를 위한 이름을 이용합니다. 실제로 Spring에서는 다양한 `NamedThreadLocal` 클래스를 이용해 `ThreadLocal@3a4afd8d`과 같은 이름보다 의미있는 이름으로 디버깅에 도움을 줍니다.
+
+`transactionInfoHolder`는 `TransactionAspectSupport` 클래스의 정적 필드로, 현재 스레드에 바인딩된 `TransactionInfo` 객체를 저장합니다.
+
+`ThreadLocal`은 멀티스레드 환경에서 스레드 간 변수 공유로 인한 동시성 문제를 방지하기 위해 제공하는 클래스인데요. 이는 각 스레드가 다른 스레드와 독립적인 변수 복사본을 가질 수 있게 합니다.
+
+현재 `TransactionStatus`를 드러낸다(expose)고 표현한 것은, 스레드 로컬 변수에 저장해 같은 스레드 내에서 이용할 수 있게 드러낸다는 뜻입니다.
+
+또한, 이전에 스레드에 바인딩된 트랜잭션 정보가 있다면 이를 `oldTransactionInfo`에 저장해 추후 복원에서도 이용할 수 있게 됩니다.
+
+이후 `transactionInfoHolder.set(this)`를 통해 현재 `TransactionInfo` 객체를 `transactionInfoHolder`에 저장해 교체합니다.
+
+`ThreadLocal`을 이용함으로써 Spring Transaction은 트랜잭션 컨텍스트의 흐름을 유연하게 관리하도록 돕는다고 말할 수 있겠습니다. 이는 이후 테스트 메서드를 함께 살펴볼 때 더 자세히 다루겠습니다.
+
+#### 6.
