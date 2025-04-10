@@ -134,7 +134,7 @@ public class Account {
     }
 }
 
-// 외부에서 처리하는 부수 효과들
+// 외부에서 처리하는 부수 효과들 - 중앙에서 하달
 private void recordWithdrawal(Account account, double amount) {
     // 출금 기록 처리
 }
@@ -176,9 +176,49 @@ void withdraw(struct Account* account, double amount) {
 
 반면, 앨런 케이의 "상태-프로세스(state-process)"라는 말은 상태와 프로세스가 가지는 흐름이 객체 내에서 모두 통합됨을 의미합니다. 여기에서 앨런 케이가 "데이터를 없애고 싶었다(I wanted to get rid of data)"고 한 말은 풀어서 이해하자면 (흐름이 동떨어져 존재하는) 데이터를 없애고 싶었다는 뜻으로도 읽힙니다.
 
-즉, 데이터 자체는 독립적인 개체가 아니라 객체 내부의 프로세스 흐름 속에서 의미를 지니게 됩니다. 따라서 제가 보기에는 앨런 케이가 의도적으로 데이터라는 용어 대신, 생물학적 메타포에서 영감을 받아 '상태'라는 말로 이를 표현했다고 생각합니다. 특히 객체에서는 더 이상 데이터나 프로시저 자체가 중요한 것이 아니라 객체의 행위를 구성하는 상태-프로세스의 흐름이 더 중요해지기 때문이기도 하겠습니다.
+```java
+class Account {
+    // 상태: 잔액과 계좌 등급
+    private double balance;
+    private AccountStatus status; // REGULAR, PREMIUM, FROZEN
+
+    // 행위: 출금이라는 맥락
+    public boolean withdraw(double amount) {
+        // 상태(status)가 행위의 실행 방식을 결정
+        if (status == AccountStatus.FROZEN) {
+            return false; // 동결된 계좌는 출금 불가
+        }
+
+        // 상태(balance)가 행위의 실행 방식을 결정
+        if (balance < amount) {
+            return false; // 잔액 부족
+        }
+
+        // 행위의 결과로 상태(balance)가 변경됨
+        balance -= amount;
+
+        // 상태(status)에 따라 추가 행위가 달라짐
+        if (status == AccountStatus.PREMIUM) {
+            addRewardPoints(amount * 0.01); // 프리미엄 계좌는 리워드 포인트 적립
+        }
+
+        // 행위의 결과로 상태 전이가 발생할 수 있음
+        if (status == AccountStatus.PREMIUM && balance < 10000) {
+            status = AccountStatus.REGULAR; // 잔액이 기준 미달시 일반 계좌로 강등
+        }
+
+        return true;
+    }
+
+    private void addRewardPoints(double points) { /* ... */ }
+}
+```
+
+위 코드와 주석에서 볼 수 있듯, 데이터 자체는 독립적인 개체가 아니라 객체 내부의 프로세스 흐름 속에서 의미를 지니게 됩니다. 따라서 제가 보기에는 앨런 케이가 의도적으로 데이터라는 용어 대신, 생물학적 메타포에서 영감을 받아 '상태'라는 말로 이를 표현했다고 생각합니다. 특히 객체에서는 더 이상 데이터나 프로시저 자체가 중요한 것이 아니라 객체의 행위를 구성하는 상태-프로세스의 흐름이 더 중요해지기 때문이기도 하겠습니다.
 
 그렇다면 "지역적 보유(local retention)"라는 말은 객체 내부에서 상태-프로세스의 흐름이 외부의 상태-프로세스 흐름과 교차되어서는 안됨을 의미합니다. 이는 경계에 대한 이야기이자, 객체 자신이 상태-프로세스에 대해 자율적인 책임을 지고 있다는 뜻이기도 합니다. 자율이라는 뜻이 스스로 규율을 정하고 지킨다는 뜻임을 떠올리면 쉽습니다.
+
+예시 코드에서는 `addRewardPoints` 메서드가 외부에서 호출되지 않고, 객체 내부에서 자율적으로 호출되는 것을 확인할 수 있습니다. 이는 객체 자신이 상태-프로세스에 대해 자율적인 책임을 지고 있다는 뜻이기도 합니다.
 
 따라서 보호 및 은닉이 중요해지는 것이고, 자연스럽게 메시징은 객체 간 통신에서 중요한 역할을 차지합니다. 한 객체가 다른 객체에게 규율을 강요하거나 외부에서 흐름을 조작하면 더 이상 자율적일 수 없으니까요. 캡슐화 시 결합도가 낮아지고 유지보수성이 높아지는 이유도 자율성 측면에서 이와 같기 때문입니다.
 
@@ -186,9 +226,26 @@ void withdraw(struct Account* account, double amount) {
 
 극도로 늦은 바인딩(extreme late-binding)은 객체가 메시지를 받았을 때 어떻게 응답할지를 런타임에 스스로 결정하게 만든다는 점에서 중요합니다. 즉, 송신자는 수신자가 메시지를 어떻게 처리할 지 알 필요가 없습니다. 타입이든 메서드든 모두 런타임에 결정되고, 그 결정권은 수신자에게 있습니다. 따라서 느슨한 결합이 일어나고, 늦은 바인딩이 다형성이라는 특성으로도 이어지는 것입니다.
 
-여기에서 "극도로(extreme)"라는 말은 메서드 디스패치만이 아니라 타입, 객체 관계, 언어 구조 등 모든 측면이 런타임에 결정된다는 뜻입니다. 일례로 앨런 케이가 개발한 Smalltalk에서는 `doesNotUnderstand:` 메커니즘을 통해 예상치 못한 메시지에 대응할 수 있습니다. 이 메커니즘은 메시지에 맞는 메소드가 없다면 기본적으로 이에 대해 반응하거나, 그저 넘기거나, 에러를 만들어내도록 calling object가 선택할 수 있도록 만듭니다.
+여기에서 "극도로(extreme)"라는 말은 메서드 디스패치만이 아니라 타입, 객체 관계, 언어 구조 등 모든 측면이 런타임에 결정된다는 뜻입니다. 이는 Java 코드로는 예시를 들기가 쉽지 않습니다.
 
-더욱 깊이 살펴보자면, 극도로 늦은 바인딩은 프로그래밍 언어를 넘어 시스템적 차원에서의 런타임 안정성으로 향한다고도 볼 수 있습니다. 시스템의 한 부분에 문제가 생겨도 부분적인 실패를 허용하고 런타임에도 새로운 기능을 추가하거나 버그를 수정할 수 있으니까요. 또한, 한 부분이 변경되었다고 해서 다시 시스템을 컴파일하고 시작할 필요도 없다는 점에서 안정성이 보장됩니다.
+대신 앨런 케이가 개발한 Smalltalk에서는 `doesNotUnderstand:` 메커니즘을 통해 예상치 못한 메시지에 대응할 수 있습니다. 이 메커니즘은 메시지에 맞는 메소드가 없다면 기본적으로 이에 대해 반응하거나, 그저 넘기거나, 에러를 만들어내도록 calling object가 선택할 수 있도록 만듭니다.
+
+![doesNotUnderstand in Smalltalk](../assets/images/250317+smalltalk+doesNotUnderstand.png)
+
+[위 이미지(출처: Wikiwand - Smalltalk)](https://www.wikiwand.com/en/articles/SmallTalk)는 Smalltalk에서 정의되지 않은 객체가 이해할 수 없는 메시지를 받았을 때 발생하는 호출 스택을 보여주는데요. 이는 아래와 같습니다.
+
+| 순서 | 호출 스택 항목                                                | 설명                                                                                             |
+| ---- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1    | UndefinedObject(Object)>>doesNotUnderstand: #demonstrate      | 정의되지 않은 객체가 이해할 수 없는 demonstrate 메시지를 받아 doesNotUnderstand: 메서드가 호출됨 |
+| 2    | UndefinedObject>>DoIt                                         | 정의되지 않은 객체에서 DoIt 메서드 실행 (코드 평가 시작점)                                       |
+| 3    | Compiler>>evaluateCue:ifFail:logged:                          | 컴파일러가 코드 큐를 평가하는 메서드                                                             |
+| 4    | Compiler>>evaluate:in:to:environment:notifying:ifFail:logged: | 컴파일러가 특정 환경에서 코드를 평가하는 메서드                                                  |
+| 5    | [] SmalltalkEditor(TextEditor)>>evaluateSelectionAndDo:       | Smalltalk 에디터에서 선택된 코드를 평가하는 블록 클로저                                          |
+| 6    | FullBlockClosure(BlockClosure)>>on:do:                        | 블록 클로저에서 예외 처리를 수행하는 메서드                                                      |
+| 7    | SmalltalkEditor(TextEditor)>>evaluateSelectionAndDo:          | Smalltalk 에디터에서 선택된 코드를 평가하고 추가 작업을 수행하는 메서드                          |
+| 8    | SmalltalkEditor(TextEditor)>>evaluateSelection                | Smalltalk 에디터에서 선택된 코드를 평가하는 메서드                                               |
+
+더욱 깊이 살펴보자면, 극도로 늦은 바인딩은 프로그래밍 언어를 넘어 시스템적 차원에서의 런타임 안정성으로 향한다고도 볼 수 있습니다. 시스템의 한 부분에 문제가 생겨도 부분적인 실패를 허용하고 런타임에도 새로운 기능을 추가하거나 버그를 수정할 수 있으니까요. 또한, 한 부분이 변경되었다고 해서 다시 시스템을 컴파일하고 시작할 필요도 없다는 점에서 안정성이 보장됩니다. 이는 앞서 말씀드렸듯, 앨런 케이가 최소한의 컴퓨팅 단위로 객체를 정의하고자 한 것과 일맥상통합니다.
 
 ## 진짜 OOP 세계?
 
@@ -200,6 +257,8 @@ void withdraw(struct Account* account, double amount) {
 
 앨런 케이가 말하는 OOP가 시스템적 측면을 강조하고 있음은 우연이 아닙니다. Smalltalk 혹은 앨런 케이의 OOP를 저는 현대 OOP의 메시지 중심 객체지향의 뿌리라고 일컫고 싶습니다.
 
+![CRC Card Example](../assets/images/250317+crc+card+example.png)
+
 특히 Smalltalk 커뮤니티의 켄트 백(Kent Beck)과 워드 커닝햄(Ward Cunningham)이 CRC(Class-Responsibility-Collaboration) 기법을 통해 객체의 자율성과 책임에 기반한 객체 간의 협력 네트워크를 형성하는 일을 제시한 것은 우연이 아니라고 생각합니다.
 
 또한, 설계적 측면에서 시스템 행위를 동적으로 수정하고 이벤트 기반의 아키텍처를 형성할 수 있는 기반을 닦아놓은 것 역시 Smalltalk이 미친 영향이라고 생각합니다.
@@ -210,7 +269,25 @@ void withdraw(struct Account* account, double amount) {
 
 따라서 복잡한 시스템을 모델링하기 위해 클래스와 객체라는 개념을 도입했으며, 이 개념은 현대 객체지향 언어의 기본 구조가 되었습니다. Smalltalk 역시 객체 개념을 Simula에서 영향 받았음을 밝힌 적 있습니다.
 
+```simula
+CLASS Shape;
+BEGIN
+    REAL x, y;
+
+    ! 가상 프로시저 선언 ;
+    VIRTUAL: PROCEDURE draw;
+
+    ! 가상 프로시저 기본 구현 ;
+    PROCEDURE draw;
+    BEGIN
+        OutText("기본 도형 그리기");
+    END;
+END;
+```
+
 Simula는 클래스와 클래스의 객체라는 용어를 도입했고, 클래스 접두어(class prefixing)을 통한 상속 구현은 현대 객체 지향 프로그래밍 언어에서도 여전히 살펴볼 수 있습니다. 또한, Simula의 가상 프로시저(virtual procedure)는 현대 객체 지향 프로그래밍에서 오버라이드(override)와 같은 개념으로 이어졌습니다.
+
+위 코드에서 `Shape CLASS Circle`과 같이 클래스 접두어를 이용해 상속을 진행할 수 있고, 해당 `Circle` 클래스 내에서 `PROCEDURE draw`를 정의함으로써 오버라이드가 가능합니다. 또한, 객체를 생성하고 참조가 `Circle` 객체를 가리키도록 함으로써 다형성도 지원이 됩니다.
 
 모델링 중심 객체지향은 시스템을 설계하고 구조화하는 데 강력한 도구를 제공했습니다. Simula의 접근 방식은 특히 도메인 모델링과 분석 단계에서 실세계 개념을 소프트웨어 구조로 매핑하는 데 도움이 되었고, UML(Unified Modeling Language)과 같은 객체지향 모델링 언어에도 영향을 미쳤습니다. 실제로 UML의 창시자 중 한 명인 Grady Booch는 Simula의 모델링 능력에서 영감을 받았다고 여러 차례 언급했습니다.
 
