@@ -1,5 +1,5 @@
 ---
-title: OOP 세계에서 AOP 이해하기
+title: OOP 세계에서 AOP 이해하기 (1) - OOP 세계
 lang: ko
 layout: post
 ---
@@ -22,7 +22,7 @@ layout: post
 
 특히, 객체 지향 프로그래밍 역시 다른 패러다임과 마찬가지로 하늘에서 갑자기 뚝 떨어진 것은 아닐 것이며, 절차형 패러다임 속에서도 객체 지향 프로그래밍의 씨앗은 존재했을 것이기 때문입니다.
 
-이러한 오해는 모두 객체(Object)라는 말의 순수성에 과하게 집중할 때 발생합니다.
+이러한 오해는 모두 객체(Object)라는 말이 주는 느낌에 과하게 집중할 때 발생합니다.
 
 ### 객체 혹은 행위자
 
@@ -32,7 +32,7 @@ layout: post
 
 이러한 시선에서는 부분적으로 객체(Object)라는 용어가 내포하는 수동성이 영향을 미쳤을 수도 있다는 생각이 듭니다. 그리고 마찬가지로, 프로그래머가 능동적으로 시스템과 코드를 구성한다는 관점에서 객체 지향 프로그래밍을 이해하게 되면서 구현이 중심이 되며 객체의 수동성이 부각되었을 수 있겠습니다.
 
-![discussion on Alan Kay OOP](../assets/images/250317+discussion+on+alan+kay+oop.png)
+![discussion on Alan Kay OOP](/assets/images/250317+discussion+on+alan+kay+oop.png)
 [2019년 Alan Kay의 OOP 관련 논의 (출처: hackernews)](https://news.ycombinator.com/item?id=19415983)
 
 그렇다면 앨런 케이(Alan Kay)가 훗날 객체 대신 행위자(Actor)라고 부르는 게 나았다는 후회를 한 것이 이해됩니다. 저는 앨런 케이가 진정 강조하고 싶었던 것은 원칙에 맞게 코드로 빚어낸 객체 하나하나가 아니라, 행위자로서 소통하고 대응하는 객체의 네트워크이자 그 행위 방식이라고 생각합니다.
@@ -233,7 +233,7 @@ class Account {
 
 대신 앨런 케이가 개발한 Smalltalk에서는 `doesNotUnderstand:` 메커니즘을 통해 예상치 못한 메시지에 대응할 수 있습니다.
 
-![doesNotUnderstand in Smalltalk](../assets/images/250317+smalltalk+doesNotUnderstand.png)
+![doesNotUnderstand in Smalltalk](/assets/images/250317+smalltalk+doesNotUnderstand.png)
 출처: "Smalltalk-80: The Language and its Implementation"
 
 위 이미지는 Smalltalk-80 시스템에서 객체가 이해할 수 없는 메시지를 받았을 때 발생하는 오류를 보여줍니다.
@@ -254,7 +254,7 @@ class Account {
 
 앨런 케이가 말하는 OOP가 시스템적 측면을 강조하고 있음은 우연이 아닙니다. Smalltalk 혹은 앨런 케이의 OOP를 저는 현대 OOP의 메시지 중심 객체지향의 뿌리라고 일컫고 싶습니다.
 
-![CRC Card Example](../assets/images/250317+crc+card+example.png)
+![CRC Card Example](/assets/images/250317+crc+card+example.png)
 [출처: edrawsoft.com](https://www.edrawsoft.com/crc-card-software.html)
 
 특히 Smalltalk 커뮤니티의 켄트 백(Kent Beck)과 워드 커닝햄(Ward Cunningham)이 CRC(Class-Responsibility-Collaboration) 기법을 통해 객체의 자율성과 책임에 기반한 객체 간의 협력 네트워크를 형성하는 일을 제시한 것은 우연이 아니라고 생각합니다.
@@ -311,7 +311,7 @@ Simula에서는 객체가 프로세스(process)라고 불리며, 메모리 내�
 
 Smalltalk-80에서는 객체가 "객체 테이블"이라는 메모리 구조에 저장되었으며, 각 객체는 객체지향 포인터(Object-Oriented Pointer)를 통해서 메모리에 올라간 객체 테이블의 인덱스가 됩니다. 여기에서 객체 테이블은 실제 객체 데이터의 메모리 위치를 추적하는 계층으로, 간접적인 참조를 가능케 합니다.
 
-![smalltalk class hierarchy](../assets/images/250317+smalltalk+instance.jpg)
+![smalltalk class hierarchy](/assets/images/250317+smalltalk+instance.jpg)
 [(출처: laputan.org)](http://www.laputan.org/ref89/ref89.html)
 
 위 그림에서 보이는 16진수 값(#16r0150160FFE, #16r0130160FFE)이 객체 테이블의 인덱스인 객체 지향 포인터입니다. 여기에서 메타오브젝트(Metaobject)에도 객체 지향 포인터가 존재한다는 것은 Smalltalk의 철학인 "모든 것은 객체다"를 뒷받침하듯, 클래스 또한 메모리에 올라간 인스턴스 객체임을 보여줍니다.
@@ -322,21 +322,23 @@ Smalltalk-80에서는 객체가 "객체 테이블"이라는 메모리 구조에 
 
 객체가 가지는 의미는 이제 더 이상 프로그램 메모리만을 경계로 삼지 않습니다. 객체 개념은 다양한 영역과 융합되며 그 경계를 확장해왔습니다. 대표적인 예시로 마이크로서비스(Microservice), 도메인 주도 설계(DDD, Domain-Driven Design), 쿠버네티스(k8s, kubernetes)를 살펴볼 수 있습니다. 이 모두에서 앞서 살펴본 역사적 관점에서의 모델링 중심 객체지향과 메시지 중심 객체지향의 면모가 엿보이기도 합니다.
 
-![microservice architecture](../assets/images/250317+microservice+architecture.png)
+![microservice architecture](/assets/images/250317+microservice+architecture.png)
 [(출처: microservices.io - patterns/microservices)](https://microservices.io/patterns/microservices.html)
 
 마이크로서비스는 객체지향 원칙을 어플리케이션 시스템 경계에서 재해석한 사례입니다. 여기에서 객체의 캡슐화, 단일 책임 원칙(SRP), 메시지 기반 통신과 같은 객체지향 원칙은 프로그램 메모리 경계를 넘어 어플리케이션 시스템 수준으로 확장되었습니다. 위 그림에서도 드러나듯, 마이크로서비스는 비즈니스 능력을 중심으로 서비스를 분리함으로써 단일 책임 원칙을 시스템 수준에서 구현합니다. 또한, 각 서비스는 자신의 데이터를 캡슐화하고 API를 통해서만 상호작용합니다.
 
-![DDD context map](../assets/images/250317+DDD+context+map.png)
+도메인 주도 설계는 객체 개념이 비즈니스 도메인 경계와 융합된 대표적 사례입니다. DDD에서는 객체가 비즈니스 도메인의 개념적 경계와 일치하도록 재정의됩니다. 바운디드 컨텍스트라는 개념을 통해 객체의 의미와 책임이 비즈니스 맥락 내에서 명확하게 정의되고, 컨텍스트 간 경계가 관리됩니다.
+
+![DDD context map](/assets/images/250317+DDD+context+map.png)
 [(출처: antman-does-software.com)](https://antman-does-software.com/ddd-context-mapping/)
 
-도메인 주도 설계는 객체 개념이 비즈니스 도메인 경계와 융합된 대표적 사례입니다. DDD에서는 객체가 비즈니스 도메인의 개념적 경계와 일치하도록 재정의됩니다. 바운디드 컨텍스트라는 개념을 통해 객체의 의미와 책임이 비즈니스 맥락 내에서 명확하게 정의되고, 컨텍스트 간 경계가 관리됩니다. 위 그림에서도 드러나듯, 컨텍스트 맵에서 `Sales Context`나 `Claims Context` 같은 바운디드 컨텍스트는 객체 개념이 비즈니스 도메인의 개념적 경계와 일치하도록 재정의됩니다.
+위 그림에서도 드러나듯, 컨텍스트 맵에서 `Sales Context`나 `Claims Context` 같은 바운디드 컨텍스트는 객체 개념이 비즈니스 도메인의 개념적 경계와 일치하도록 재정의됩니다.
 
 또한, 유비쿼터스 언어는 코드 상의 객체와 비즈니스 언어 사이의 구분이 허물어지는 계기로서 작용합니다.애그리게이트 루트를 통한 경계 설정은 객체 간의 관계와 트랜잭션 경계를 비즈니스 규칙에 맞게 재구성하구요. 즉, 객체 개념은 단순한 기술적 구성체를 넘어 비즈니스 도메인의 개념적 경계와 융합됩니다.
 
 쿠버네티스에서는 객체 개념이 인프라스트럭처 경계와 융합되었습니다. 쿠버네티스에서 파드(Pod)는 객체지향 프로그래밍의 객체와 유사한 방식으로 존재합니다. 특히 파드가 "생성하고 관리할 수 있는 배포 가능한 가장 작은 컴퓨팅 단위"라는 공식 문서의 설명은 앨런 케이의 OOP를 떠올리게 하는데요. 각 파드는 고유한 식별자와 상태를 가지며, 다른 파드와 네트워크를 통해 메시지를 주고 받습니다.
 
-![oop vs. kubernetes](../assets/images/250317+oop+vs+kubernetes.png)
+![oop vs. kubernetes](/assets/images/250317+oop+vs+kubernetes.png)
 
 [위 자료](https://www.alibabacloud.com/blog/understanding-kubernetes-from-the-perspective-of-application-development_597457)에서 볼 수 있듯이, 객체지향 프로그래밍의 여러 개념들은 쿠버네티스의 개념들과 직접적으로 매핑되기도 합니다. 이처럼 쿠버네티스는 객체지향 패러다임을 인프라 수준으로 확장하여, 분산된 인프라스트럭처를 객체들의 네트워크로 모델링했습니다.
 
@@ -352,4 +354,44 @@ OOP를 바라보는 시선을 재고하며, 객체의 의미와 그 확장된 �
 
 나아가 객체 지향의 진정한 가치는 코드의 구조적 아름다움이나 이론적 순수성이 아니라, 복잡한 시스템을 이해하고 관리하기 쉬운 방식으로 설계하는 능력에 있다고 생각합니다.
 
-다음 글에서는 이러한 OOP 세계에서 AOP가 가지는 의미를 살펴보겠습니다.
+그러나 OOP가 모든 문제를 완벽하게 해결하는 것은 아닙니다. 일례로 관점 지향 프로그래밍(Aspect-Oriented Programming, AOP)은 절차 지향 프로그래밍과 객체 지향 프로그래밍 모두에 존재하는 문제를 해결하기 위해 등장했습니다.
+
+다음 글에서는 이러한 OOP 세계에서 AOP가 가지는 의미와 역할, 그리고 Spring 프레임워크에서 AOP가 어떻게 구현되고 활용되는지 살펴보겠습니다.
+
+## Reference
+
+Goldberg, A., & Robson, D. (1983). Smalltalk-80: The Language and its Implementation. Retrieved from
+[http://stephane.ducasse.free.fr/FreeBooks/BlueBook/Bluebook.pdf](http://stephane.ducasse.free.fr/FreeBooks/BlueBook/Bluebook.pdf)
+
+Foote, B., & Johnson, R. E. (1989). Reflective facilities in Smalltalk-80. ACM SIGPLAN Notices, 24(10), 327-335. Retrieved from
+[https://doi.org/10.1145/74878.74911](https://doi.org/10.1145/74878.74911)
+
+Kay, A. C. (1993). The Early History of Smalltalk. ACM SIGPLAN Notices, 28(3), 69-95. Retrieved from
+[http://worrydream.com/EarlyHistoryOfSmalltalk/](http://worrydream.com/EarlyHistoryOfSmalltalk/)
+
+Kay, A. C. (1998). Dr. Alan Kay on the Meaning of "Object-Oriented Programming" [Email interview]. Retrieved from
+[http://userpage.fu-berlin.de/~ram/pub/pub_jf47ht81Ht/doc_kay_oop_en](http://userpage.fu-berlin.de/~ram/pub/pub_jf47ht81Ht/doc_kay_oop_en)
+
+Dahl, O. J., & Nygaard, K. (1966). SIMULA: an ALGOL-based simulation language. Communications of the ACM, 9(9), 671-678. Retrieved from
+[https://doi.org/10.1145/365813.365819](https://doi.org/10.1145/365813.365819)
+
+INTRODUCTION TO OOP IN SIMULA
+[http://staff.um.edu.mt/jskl1/talk.html](http://staff.um.edu.mt/jskl1/talk.html)
+
+A Conversation with Alan Kay
+[https://queue.acm.org/detail.cfm?id=1039523](https://queue.acm.org/detail.cfm?id=1039523)
+
+understanding-kubernetes-from-the-perspective-of-application-development
+[https://www.alibabacloud.com/blog/understanding-kubernetes-from-the-perspective-of-application-development_597457](understanding-kubernetes-from-the-perspective-of-application-development)
+
+Beck, K., & Cunningham, W. (1989). A laboratory for teaching object-oriented thinking. ACM SIGPLAN Notices, 24(10), 1-6. Retrieved from
+[https://doi.org/10.1145/74877.74879](https://doi.org/10.1145/74877.74879)
+
+Brandolini, A. (2009). Strategic Domain Driven Design with Context Mapping. Retrieved from
+[https://www.infoq.com/articles/ddd-contextmapping/](https://www.infoq.com/articles/ddd-contextmapping/)
+
+쿠버네티스 공식문서 - 파드
+[https://kubernetes.io/ko/docs/concepts/workloads/pods/](https://kubernetes.io/ko/docs/concepts/workloads/pods/)
+
+Richardson, C. (n.d.). Pattern: Microservice Architecture. Retrieved from
+[https://microservices.io/patterns/microservices.html](https://microservices.io/patterns/microservices.html)
