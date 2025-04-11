@@ -234,6 +234,7 @@ class Account {
 대신 앨런 케이가 개발한 Smalltalk에서는 `doesNotUnderstand:` 메커니즘을 통해 예상치 못한 메시지에 대응할 수 있습니다.
 
 ![doesNotUnderstand in Smalltalk](/assets/images/250317+smalltalk+doesNotUnderstand.png)
+
 출처: "Smalltalk-80: The Language and its Implementation"
 
 위 이미지는 Smalltalk-80 시스템에서 객체가 이해할 수 없는 메시지를 받았을 때 발생하는 오류를 보여줍니다.
