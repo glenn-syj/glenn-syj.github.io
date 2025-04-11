@@ -159,7 +159,7 @@ private void sendWithdrawalNotification(Account account, double amount) {
 
 반면, 상태-프로세스의 지역적 유지는 더욱 근본적으로 객체의 책임과 자율성을 논하는 용어입니다. 여기에서 중요한 것은 객체 내부에서 독립적으로 책임지는 상태와 프로세스가 통합된다는 점입니다. 절차적 프로그래밍에서는 데이터와 프로시저가 분리되어 있었다는 점을 생각해보면 이해가 쉽습니다.
 
-```C
+```c
 // 데이터 구조체 정의
 struct Account {
     double balance;
@@ -255,6 +255,7 @@ class Account {
 앨런 케이가 말하는 OOP가 시스템적 측면을 강조하고 있음은 우연이 아닙니다. Smalltalk 혹은 앨런 케이의 OOP를 저는 현대 OOP의 메시지 중심 객체지향의 뿌리라고 일컫고 싶습니다.
 
 ![CRC Card Example](/assets/images/250317+crc+card+example.png)
+
 [출처: edrawsoft.com](https://www.edrawsoft.com/crc-card-software.html)
 
 특히 Smalltalk 커뮤니티의 켄트 백(Kent Beck)과 워드 커닝햄(Ward Cunningham)이 CRC(Class-Responsibility-Collaboration) 기법을 통해 객체의 자율성과 책임에 기반한 객체 간의 협력 네트워크를 형성하는 일을 제시한 것은 우연이 아니라고 생각합니다.
@@ -312,6 +313,7 @@ Simula에서는 객체가 프로세스(process)라고 불리며, 메모리 내�
 Smalltalk-80에서는 객체가 "객체 테이블"이라는 메모리 구조에 저장되었으며, 각 객체는 객체지향 포인터(Object-Oriented Pointer)를 통해서 메모리에 올라간 객체 테이블의 인덱스가 됩니다. 여기에서 객체 테이블은 실제 객체 데이터의 메모리 위치를 추적하는 계층으로, 간접적인 참조를 가능케 합니다.
 
 ![smalltalk class hierarchy](/assets/images/250317+smalltalk+instance.jpg)
+
 [(출처: laputan.org)](http://www.laputan.org/ref89/ref89.html)
 
 위 그림에서 보이는 16진수 값(#16r0150160FFE, #16r0130160FFE)이 객체 테이블의 인덱스인 객체 지향 포인터입니다. 여기에서 메타오브젝트(Metaobject)에도 객체 지향 포인터가 존재한다는 것은 Smalltalk의 철학인 "모든 것은 객체다"를 뒷받침하듯, 클래스 또한 메모리에 올라간 인스턴스 객체임을 보여줍니다.
@@ -323,6 +325,7 @@ Smalltalk-80에서는 객체가 "객체 테이블"이라는 메모리 구조에 
 객체가 가지는 의미는 이제 더 이상 프로그램 메모리만을 경계로 삼지 않습니다. 객체 개념은 다양한 영역과 융합되며 그 경계를 확장해왔습니다. 대표적인 예시로 마이크로서비스(Microservice), 도메인 주도 설계(DDD, Domain-Driven Design), 쿠버네티스(k8s, kubernetes)를 살펴볼 수 있습니다. 이 모두에서 앞서 살펴본 역사적 관점에서의 모델링 중심 객체지향과 메시지 중심 객체지향의 면모가 엿보이기도 합니다.
 
 ![microservice architecture](/assets/images/250317+microservice+architecture.png)
+
 [(출처: microservices.io - patterns/microservices)](https://microservices.io/patterns/microservices.html)
 
 마이크로서비스는 객체지향 원칙을 어플리케이션 시스템 경계에서 재해석한 사례입니다. 여기에서 객체의 캡슐화, 단일 책임 원칙(SRP), 메시지 기반 통신과 같은 객체지향 원칙은 프로그램 메모리 경계를 넘어 어플리케이션 시스템 수준으로 확장되었습니다. 위 그림에서도 드러나듯, 마이크로서비스는 비즈니스 능력을 중심으로 서비스를 분리함으로써 단일 책임 원칙을 시스템 수준에서 구현합니다. 또한, 각 서비스는 자신의 데이터를 캡슐화하고 API를 통해서만 상호작용합니다.
@@ -330,6 +333,7 @@ Smalltalk-80에서는 객체가 "객체 테이블"이라는 메모리 구조에 
 도메인 주도 설계는 객체 개념이 비즈니스 도메인 경계와 융합된 대표적 사례입니다. DDD에서는 객체가 비즈니스 도메인의 개념적 경계와 일치하도록 재정의됩니다. 바운디드 컨텍스트라는 개념을 통해 객체의 의미와 책임이 비즈니스 맥락 내에서 명확하게 정의되고, 컨텍스트 간 경계가 관리됩니다.
 
 ![DDD context map](/assets/images/250317+DDD+context+map.png)
+
 [(출처: antman-does-software.com)](https://antman-does-software.com/ddd-context-mapping/)
 
 위 그림에서도 드러나듯, 컨텍스트 맵에서 `Sales Context`나 `Claims Context` 같은 바운디드 컨텍스트는 객체 개념이 비즈니스 도메인의 개념적 경계와 일치하도록 재정의됩니다.
