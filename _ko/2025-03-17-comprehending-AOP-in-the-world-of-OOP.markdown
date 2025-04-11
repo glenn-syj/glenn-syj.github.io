@@ -61,7 +61,7 @@ layout: post
 
 아래 예시 코드는 각각 메시징과 명령 방식으로 구현된 계좌 출금 코드입니다. 메시징에서는 "계좌에서 출금해 주세요"라는 메시지를 보내고, 명령에서는 "계좌 잔액 변수에서 금액을 빼세요"라는 명령을 내립니다.
 
-```Java
+```java
 // 메시지 전송 - "무엇을" 할지만 요청
 public void processWithdrawal(Account account, double amount) {
     // 계좌에 출금 "메시지"를 보냄
