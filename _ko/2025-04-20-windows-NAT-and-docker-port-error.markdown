@@ -109,10 +109,6 @@ Docker Desktop에서 WSL2 Backend 옵션을 활성화하는 경우에는 Windows
 
 ### 에러 발생 과정 상세 설명
 
-네, VPNKit 기반으로 수정된 버전을 작성해드리겠습니다:
-
-### 에러 발생 과정 상세 설명
-
 **1. 사용자의 Docker 컨테이너 실행 요청**
 
 ```bash
@@ -128,7 +124,9 @@ Docker CLI (Windows Host)
    ↓
 Hyper-V Socket (AF_VSOCK)
    ↓
-WSL2 VM 내부의 Docker Engine (dockerd)
+WSL2 VM
+   ↓
+Docker Engine (dockerd)
 ```
 
 Docker CLI의 명령은 Hyper-V Socket을 통해 WSL2 VM에 전달됩니다. WSL2 VM 내부에서 Docker Engine이 명령을 수신합니다.
@@ -139,25 +137,27 @@ Docker Engine이 먼저 Mattermost 이미지를 확인하고 필요한 경우 pu
 
 생성된 컨테이너는 Docker Bridge Network에 연결되어 172.x.x.x 대역의 내부 IP를 할당받습니다. 컨테이너의 8065 포트는 Docker Bridge Network를 통해 WSL2 VM의 네트워크 인터페이스인 eth0의 8065 포트와 바인딩됩니다.
 
-**4. VPNKit 포트 포워딩 설정**
+**4. VPNKit 포트 포워딩 설정 시도**
 
 ```
-WSL2 VM의 eth0 (192.168.65.x/24)
+VPNKit
+   ↓
+Windows Host의 8065 포트 바인딩 시도 (여기서 실패)
+   ↓
+Hyper-V Socket (AF_VSOCK)
    ↓
 tap-vsockd (VM 내부 프로세스)
    ↓
-Hyper-V Socket Driver (AF_VSOCK)
+tap device (가상 네트워크 인터페이스)
    ↓
-VPNKit
-   ↓
-Windows Host의 8065 포트 포워딩 시도
+WSL2 VM의 eth0 (이미 컨테이너와 바인딩 된 상태)
 ```
 
-VPNKit은 WSL2 VM과 Windows Host 간의 네트워크 통신을 담당합니다. WSL2 VM의 eth0 인터페이스(192.168.65.x/24)와 Windows Host의 포트를 연결하려 시도합니다.
+VPNKit은 WSL2 VM과 Windows Host 간의 네트워크 통신을 담당합니다. 따라서 WSL2 VM의 eth0 인터페이스와 Windows Host의 포트를 연결하려 시도합니다.
 
 **5. 포트 포워딩 실패**
 
-8065 포트는 시스템 예약 포트이므로 이용할 수 없습니다. VPNKit이 Windows Host의 8065 포트를 바인딩하려 할 때 실패합니다.
+Windows Host의 8065 포트는 문제 상황에서 시스템 예약 포트이므로 이용할 수 없습니다. VPNKit이 Windows Host의 8065 포트를 바인딩하려 할 때 실패합니다.
 
 **6. 에러 전파 및 컨테이너 실행 중단**
 
@@ -240,13 +240,13 @@ Dynamic/Private Ports(49152-65535)는 동적 포트 범위로, IANA가 관리하
 
 ## 부록
 
-Windows 환경에서 시스템 예약 포트 범위를 확인하고, 그 범위에 속하는 포트 포워딩을 Docker Desktop에서 진행하는 코드를 작성해두었습니다.
+Windows 환경에서 시스템 예약 포트 범위를 확인하고, 그 범위에 속하는 포트 포워딩을 Docker Desktop에서 진행하는 코드를 작성해두었습니다. 빠른 PoC를 위해 Cursor를 이용해 작성했으므로, 코드 자체가 완벽하지 않을 수 있음에 유의해주세요.
 
 [https://github.com/glenn-syj/infra-playground/tree/main/docker/port_managing_winnat](https://github.com/glenn-syj/infra-playground/tree/main/docker/port_managing_winnat)
 
 위 repository를 clone하시거나 다운받으신 뒤, `run_test.ps1` 파일을 실행하고 관리자 권한을 허용하면 `test_scenarios.py` 파일의 테스트 시나리오가 진행됩니다.
 
-요구 조건으로는 python 3.10 이상과 docker desktop 설치가 필요합니다.
+요구 조건으로는 python 3.10 이상과 pip, docker desktop 설치가 필요합니다.
 
 ## 나가며
 
