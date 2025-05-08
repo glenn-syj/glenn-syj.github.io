@@ -12,7 +12,9 @@ layout: post
 ## 네트워크: HTTP 500 에러와 포트 바인딩에서 시작하기
 
 ```
-(HTTP code 500) server error - Ports are not available: exposing port TCP 0.0.0.0:8065 -> 0.0.0.0:0: listen tcp 0.0.0.0:8065: bind: An attempt was made to access a socket in a way forbidden by its access permissions.
+(HTTP code 500) server error - Ports are not available:
+exposing port TCP 0.0.0.0:8065 -> 0.0.0.0:0: listen tcp 0.0.0.0:8065:
+bind: An attempt was made to access a socket in a way forbidden by its access permissions.
 ```
 
 윈도우즈 환경에서 도커를 이용하며 분명히 지난 실행에서는 잘 되었는데, 갑작스럽게 포트를 이용할 수 없다는 에러가 발생하고는 합니다. 심지어는 `netstat` 명령어로 확인해보아도 해당 포트를 이용하는 프로세스를 찾을 수 없었습니다.
@@ -209,7 +211,7 @@ Windows NAT만이 아니라, Hyper-V 역시도 포트를 예약할 수 있습니
 netsh int ipv4 show excludedportrange protocol=tcp
 ```
 
-![TCP 동적 포트 범위](/assets/images/250420+tcp+port+range.png)
+![TCP 동적 포트 범위](/assets/images/250420+tcp+dynamic+port.png)
 
 위 명령어의 실행 결과로, 제 Windows 호스트는 1024포트부터 시작해 64511개의 포트를 동적 포트로 할당 가능한 상태로 열어둠을 알게 되었습니다.
 
