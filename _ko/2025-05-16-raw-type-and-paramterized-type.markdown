@@ -92,6 +92,7 @@ World
 ## WebClient와 함께 살펴보는 Raw Type
 
 ```java
+// Riot API Key는 riotKorWebClient의 defaultHeader()에 설정
 public List<TftLeagueEntryResponse> getLeagueEntries(String puuid) {
     return handleApiCall(
             riotKorWebClient.get()
@@ -166,8 +167,41 @@ void TFT_랭크_엔트리_실제API호출_테스트() throws InterruptedExceptio
 java.lang.ClassCastException: class java.util.LinkedHashMap cannot be cast to class com.glennsyj.rivals.api.tft.model.TftLeagueEntryResponse (이하 생략)
 ```
 
-이러한 에러는 왜 발생할까요? 해결 방안을 살펴보기 전에, 우선 `WebClient`가 어떻게 위 riot api 경로의 응답을 받아들이는지 그 구조를 살펴보겠습니다.
+이러한 에러는 왜 발생할까요? 해결 방안을 살펴보기 전에, 우선 `WebClient`가 어떻게 위 Riot API 경로의 응답을 받아들이고 `ClassCastException`을 띄우는지 그 과정을 살펴보겠습니다.
 
-### WebClient란?
+### WebClient 오류 과정 살펴보기
 
 `WebClient`는 Spring WebFlux에서 제공하는 논블로킹, 리액티브 HTTP 클라이언트입니다. 동기 및 블로킹 방식의 RestTemplate의 대체로 사용가능하며, 추후 `RestClient`가 등장하기는 했지만, 추후 서비스가 복잡해질 것을 고려하여 `WebClient`를 택했습니다.
+
+여기에서 `bodyToMono()` 부분은 전체 응답은 필요 없이 응답 본문만을 가져오기 위해 사용됩니다. 이때, HTTP 요청이 성공적으로 수행되고 응답이 도착하면 `WebClient`는 응답 본문을 가져오고, Java 객체로 역직렬화하려고 시도합니다. 이후 변환된 Java 객체를 `Mono` 타입으로 감싸서 반환합니다. (직관적으로 `bodyToMono()`라는 메서드 명을 떠올리면 쉽습니다.)
+
+이 역직렬화 과정에서 문제가 발생합니다. 이전 코드에서 `bodyToMono(List.class)`는 `WebClient`에게 응답 본문을 Raw Type인 `List` 타입으로 역직렬화하도록 지시하는데요. 여기에서 기본 구현체인 `DefaultWebClient`는 내부적으로 Jackson과 같은 JSON 라이브러리를 사용해 JSON 응답을 Java 객체로 변환하고자 합니다.
+
+```json
+[
+  {
+    "puuid": "puuid",
+    "leagueId": "leagueId",
+    "queueType": "RANKED_TFT",
+    "tier": "PLATINUM",
+    "rank": "II",
+    "summonerId": "summonerId",
+    "leaguePoints": 45,
+    ...
+  }
+]
+```
+
+하지만 Jackson은 이 응답 본문에 대해서 `List.class`라는 정보만 가지고 있기 때문에, JSON 배열 내의 객체를 특정 구현체로 반환할 수 없습니다. 그래서 Jackson은 POJO 대신 각 JSON 객체를 키-값 쌍을 가지는 `LinkedHashMap`으로 변환을 시도합니다.
+
+```java
+/*
+    에러 발생!
+    LinkedHashMap은 TftLeagueEntryResponse로 형 변환 불가능
+*/
+TftLeagueEntryResponse entry0 = (TftLeagueEntryResponse) response.get(0);
+```
+
+즉, 기존의 의도와 다르게 `bodyToMono(List.class)`는 실제로는 `Mono<List<LinkedHashMap>>`의 형식으로 반환을 시도하게 됩니다. 이러한 이유로 테스트 코드에서는 `ClassCastException`이 발생하게 됩니다.
+
+특히, Java에서 제네릭은 컴파일 시점에만 타입 정보를 강제하고 런타입에는 타입 정보가 소거되므로 아무리 `List<TftLeagueEntryResponse>`라는 제네릭 클래스를 지정할 수 없습니다.
