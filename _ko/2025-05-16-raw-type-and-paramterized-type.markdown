@@ -1,5 +1,5 @@
 ---
-title: Raw Type과 ParameterizedTypeReference
+title: WebClient 오류에서 시작하는 Raw Type과 ParameterizedTypeReference
 lang: ko
 layout: post
 ---
@@ -8,7 +8,8 @@ layout: post
 
 - 타입 안전성을 보장하지 않는 Raw Type과 이를 해결하기 위한 ParameterizedTypeReference에 대해 알아보는 글입니다.
 - 특히, Spring Boot에서 `WebClient`를 이용해 배열 형태로 response body를 받는 경우에 대하여 살펴보고, 이에서 단순히 `List.class`를 이용했을 때의 문제 상황에서 시작합니다.
-- 최종 수정: 25/05/16
+- 나아가 `WebClient` 오류에 기반해 역직렬화 과정에서 제네릭과 타입 소거가 미치는 영향을 살펴봅니다.
+- 최종 수정: 25/05/18
 
 ## Raw Type 이해하기
 
@@ -76,9 +77,11 @@ public class Main {
 ```
 출력 결과
 ---
+
 Hello
 World
 10
+
 ```
 
 `List<String>`은 `String` 타입이 아닌 요소가 들어가면 컴파일 오류가 발생하지만, `List`는 타입 아규먼트가 지정되어있지 않은 Raw Type이기 때문에 컴파일 오류가 발생하지 않습니다.
@@ -204,4 +207,136 @@ TftLeagueEntryResponse entry0 = (TftLeagueEntryResponse) response.get(0);
 
 즉, 기존의 의도와 다르게 `bodyToMono(List.class)`는 실제로는 `Mono<List<LinkedHashMap>>`의 형식으로 반환을 시도하게 됩니다. 이러한 이유로 테스트 코드에서는 `ClassCastException`이 발생하게 됩니다.
 
-특히, Java에서 제네릭은 컴파일 시점에만 타입 정보를 강제하고 런타입에는 타입 정보가 소거되므로 아무리 `List<TftLeagueEntryResponse>`라는 제네릭 클래스를 지정할 수 없습니다.
+특히, Java에서 제네릭은 컴파일 시점에만 타입 정보를 강제하고 런타임에는 타입 정보가 소거되므로 아무리 `List<TftLeagueEntryResponse>`라는 제네릭 클래스를 지정할 수 없습니다. 곧, `bodyToMono(class<T> clazz)` 시그니처에서 `List<TftLeagueEntryResponse>`라는 완전한 타입 정보를 가진 객체를 전달할 수 없다는 뜻입니다.
+
+그렇다면 이대로 포기해야 할까요? 아닙니다. 이러한 문제를 해결하기 위해서는 바로 `ParameterizedTypeReference`를 이용하면 됩니다.
+
+## ParameterizedTypeReference를 이용한 문제 해결
+
+Spring Framework에서는 런타임에서도 제네릭 타입 정보를 보존하고 조회할 수 있도록 `ParameterizedTypeReference`를 제공합니다. `ParameterizedTypeReference`는 익명 내부 클래스를 활용해서 제네릭 타입 정보를 보존하고 이용할 수 있도록 합니다.
+
+```java
+public abstract class ParameterizedTypeReference<T> {
+
+	private final Type type;
+
+	protected ParameterizedTypeReference() {
+
+        // 익명 서브 클래스의 제네릭 슈퍼클래스 타입을 가져옴
+		Class<?> parameterizedTypeReferenceSubclass = findParameterizedTypeReferenceSubclass(getClass());
+		Type type = parameterizedTypeReferenceSubclass.getGenericSuperclass();
+
+        // 파라미터화된 타입인지 확인
+		Assert.isInstanceOf(ParameterizedType.class, type, "Type must be a parameterized type");
+
+        // 실제 타입 인자를 가져옴
+		ParameterizedType parameterizedType = (ParameterizedType) type;
+		Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+		Assert.isTrue(actualTypeArguments.length == 1, "Number of type arguments must be 1");
+		this.type = actualTypeArguments[0];
+	}
+
+	private ParameterizedTypeReference(Type type) {
+		this.type = type;
+	}
+
+	// getter, equals, hashCode, toString 생략
+
+	// forType, findParameterizedTypeReferenceSubclass 메서드 생략
+
+}
+```
+
+익명 내부 클래스를 생성할 때, 컴파일러는 제네릭 타입 정보를 클래스 파일에 저장합니다. `findParameterizedTypeReferenceSubclass()` 메서드는 상속 계층 구조를 따라 `ParameterizedTypeReference` 클래스의 서브 클래스를 찾는 재귀적인 메서드입니다.
+
+```java
+private static Class<?> findParameterizedTypeReferenceSubclass(Class<?> child) {
+
+    // 현재 클래스의 부모 클래스 가져오기
+    Class<?> parent = child.getSuperclass();
+
+    // Object 클래스까지 도달했다면 `ParameterizedTypeReference` 클래스가 아닌 것이므로 예외 발생
+    if (Object.class == parent) {
+        throw new IllegalStateException("Expected ParameterizedTypeReference superclass");
+    }
+    // 직접적인 부모가 `ParameterizedTypeReference` 클래스라면 현재 클래스 반환
+    else if (ParameterizedTypeReference.class == parent) {
+        return child;
+    }
+    // 그 외의 경우 부모 클래스에 대해 재귀적으로 검사
+    else {
+        return findParameterizedTypeReferenceSubclass(parent);
+    }
+}
+```
+
+### 중첩 구조 타입 처리
+
+이러한 구조는 `ParameterizedTypeReference<Map<String, List<String>>>`과 같이 복잡하게 중첩된 제네릭 타입의 경우도 Refelction API를 이용해 전체 타입 정보를 보존하도록 하는데요.
+
+```java
+// 익명 내부 클래스로 ParameterizedTypeReference 생성
+ParameterizedTypeReference<Map<String, List<String>>> typeRef = new ParameterizedTypeReference<Map<String, List<String>>>() {};
+```
+
+위와 같이 `Map<String, List<String>>` 타입에 대한 `ParameterizedTypeReference` 객체인 `typeRef`를 생성했습니다. 이 `typeRef` 객체는 내부적으로 `Map<String, List<String>>` 전체에 대한 `Type` 정보를 `type` 필드에 저장하고 있습니다.
+
+이 저장된 타입 정보는 `typeRef.getType()` 메서드를 통해 가져올 수 있습니다. 이렇게 가져온 `Type` 객체(여기서는 `actualTypeFromRef`라고 명명하겠습니다)를 사용하여 중첩된 제네릭 구조를 분석할 수 있습니다. 아래 코드는 그 내부 구조를 분석하는 과정입니다.
+
+```java
+Type actualTypeFromRef = typeRef.getType();
+
+// 최상위 레벨: type이 Map<String, List<String>>
+ParameterizedType mapType = (ParameterizedType) actualTypeFromRef;
+/*
+    Map의 타입 파라미터를 배열로 가져옴
+    mapTypeArgs[0] = String.class (키 타입)
+    mapTypeArgs[1] = ParameterizedType(List<String>) (값 타입)
+*/
+Type[] mapTypeArgs = mapType.getActualTypeArguments();
+
+// 중첩 레벨: type이 List<String>
+if (mapTypeArgs[1] instanceof ParameterizedType) {
+    ParameterizedType listType = (ParameterizedType) mapTypeArgs[1];
+
+    /*
+        List의 타입 파라미터를 배열로 가져옴
+        listTypeArgs[0] = String.class
+    */
+    Type[] listTypeArgs = listType.getActualTypeArguments();
+}
+```
+
+이처럼 `ParameterizedType` 인터페이스의 `getActualTypeArguments()` 메서드를 재귀적으로 활용하면, 아무리 복잡하게 중첩된 제네릭 타입이라도 그 계층 구조를 따라 각 레벨의 실제 타입 인자들을 정확히 파악할 수 있습니다. `ParameterizedTypeReference`는 이러한 방식으로 중첩된 상태에서도 전체 제네릭 타입 정보를 보존합니다.
+
+### 문제 해결
+
+이제 `ParameterizedTypeReference`를 이용해 문제를 해결할 수 있습니다.
+
+```java
+public List<TftLeagueEntryResponse> getLeagueEntries(String puuid) {
+    return handleApiCall(
+            riotKorWebClient.get()
+                    .uri("/tft/league/v1/by-puuid/{puuid}", puuid)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<List<TftLeagueEntryResponse>>() {
+                    }),
+            "소환사의 TFT 리그 정보를 찾을 수 없습니다: " + puuid
+    );
+}
+```
+
+## 나가며
+
+지금까지 Java의 Raw Type이 타입 안전성을 어떻게 저해할 수 있는지, 특히 `WebClient`와 같은 HTTP 클라이언트로 제네릭 컬렉션 타입의 응답을 처리할 때 `List.class`와 같이 Raw Type을 사용하면 어떤 문제가 발생하는지 살펴보았습니다.
+
+문제를 해결하기 위해 Spring Framework가 제공하는 `ParameterizedTypeReference`는 익명 내부 클래스의 특성을 활용하여 런타임에도 완전한 제네릭 타입 정보를 보존할 수 있음 역시도 알게 되었습니다.
+
+특히, `ParameterizedTypeReference`를 사용함으로써 `WebClient`는 내부적으로 Jackson과 같은 라이브러리를 통해 `List<TftLeagueEntryResponse>`와 같이 중첩된 제네릭 타입까지도 정확하게 역직렬화할 수 있게 됩니다.
+
+Raw Type 때문에 JSON 객체가 의도한 DTO가 아닌 `LinkedHashMap`으로 변환되어 `ClassCastException`이 발생했다는 점도 인상 깊었습니다. 이는 역직렬화 과정에서도 제네릭과 타입 소거가 미치는 영향이 크다는 것을 알게되는 계기가 되었습니다.
+
+결국, Raw Type의 사용은 가급적 지양하고, 제네릭 타입을 다룰 때는 `ParameterizedTypeReference`와 같이 타입 정보를 명확히 전달할 수 있는 방법을 이용할 필요가 있겠습니다.
+
+비록 `Mono`란 무엇인가에 대한 설명, 왜 `ParameterizedTypeReference`를 익명 클래스로 생성하는 가에 대한 바이트코드 분석은 다루지 못했지만, 이번 글은 여기에서 마치도록 하겠습니다.
