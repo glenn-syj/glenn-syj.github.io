@@ -340,3 +340,13 @@ Raw Type 때문에 JSON 객체가 의도한 DTO가 아닌 `LinkedHashMap`으로 
 결국, Raw Type의 사용은 가급적 지양하고, 제네릭 타입을 다룰 때는 `ParameterizedTypeReference`와 같이 타입 정보를 명확히 전달할 수 있는 방법을 이용할 필요가 있겠습니다.
 
 비록 `Mono`란 무엇인가에 대한 설명, 왜 `ParameterizedTypeReference`를 익명 클래스로 생성하는 가에 대한 바이트코드 분석은 다루지 못했지만, 이번 글은 여기에서 마치도록 하겠습니다.
+
+## References
+
+[https://docs.oracle.com/javase/tutorial/java/generics/rawTypes.html](https://docs.oracle.com/javase/tutorial/java/generics/rawTypes.html)
+
+[https://github.com/spring-projects/spring-framework/blob/main/spring-core/src/main/java/org/springframework/core/ParameterizedTypeReference.java](https://github.com/spring-projects/spring-framework/blob/main/spring-core/src/main/java/org/springframework/core/ParameterizedTypeReference.java)
+
+[https://developer.riotgames.com/apis](https://developer.riotgames.com/apis)
+
+[https://github.com/glenn-syj/rivals](https://github.com/glenn-syj/rivals)
