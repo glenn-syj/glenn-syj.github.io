@@ -1,5 +1,5 @@
 ---
-title: PNPM과 Next.js standalone을 이용한 빌드 및 배포 (1) - PNPM 알기
+title: PNPM과 Next.js standalone을 이용한 빌드 및 배포 (1) - PNPM 이해하기
 lang: ko
 layout: post
 ---
@@ -21,7 +21,7 @@ layout: post
 
 패키지 매니저는 개발에 필요한 라이브러리나 프레임워크의 의존성을 관리하는 도구입니다. 특히, 명시된 의존성 정보를 바탕으로 패키지를 설치하고, 소스코드에서는 명시된 특정 버전의 라이브러리를 이용할 수 있도록 합니다.
 
-대표적으로 Javascript에서는 npm, yarn, pnpm이 패키지 매니저로 활약하고 있습니다. Java에서의 gradle도 패키지 매니징과 함께 빌드 매니징을 지원하고 있구요. Hombrew나 apt 역시 패키지 매니저라 볼 수 있습니다. 이번 글에서는 Node.js 생태계 내에서의 패키지 매니저를 다룹니다.
+대표적으로 npm, yarn, pnpm이 패키지 매니저로 활약하고 있습니다. Java에서의 gradle도 패키지 매니징과 함께 빌드 매니징을 지원하고 있구요. Hombrew나 apt 역시 패키지 매니저라 볼 수 있습니다. 이번 글에서는 Node.js 생태계 내에서의 패키지 매니저를 다룹니다.
 
 패키지 매니저의 기본적인 기능은 무엇일까요? 이는 "만약 패키지 매니저가 없었다면 어떻게 의존성 관리를 진행해야할까?"라는 질문에서 시작하면 좋습니다. MDN Web Docs에서는 패키지 매니저를 쓰지 않는 경우에 관해 이야기합니다.
 
@@ -56,21 +56,105 @@ npm에서는 의존성 패키지 A를 이용하는 100개의 프로젝트를 위
 
 pnpm은 `node_modules` 디렉토리를 이용하는 방식에서도 근본적인 차이가 있습니다.. `pnpm install` 명령이 실행되면 의존성 관리는 다음과 같이 이루어집니다.
 
-pnpm은 먼저 시스템 내 전역 저장소에 있는 패키지 파일들에 대해 해당 프로젝트의 `node_modules/.pnpm` 디렉토리 내에 하드 링크를 생성합니다. 이 과정에서 전역 콘텐츠 주소 지정 저장소가 이용됩니다.
+pnpm은 먼저 시스템 내 전역 저장소에 있는 패키지 파일들에 대해 해당 프로젝트의 `node_modules/.pnpm` 디렉토리 내에 하드 링크를 생성합니다. 아래 코드는 실제로 pnpm에서 하드 링크를 생성하는 코드입니다. 자세한 내용은 [pnpm repository의 /fs/hard-link-dir](https://github.com/pnpm/pnpm/blob/main/fs/hard-link-dir/src/index.ts)링크를 참고해주세요.
 
-하드 링크는 원본 파일과 동일한 inode를 가리키므로, 실제 디스크 공간을 추가로 차지하지 않으면서 파일에 직접 접근하는 것과 같은 효과를 냅니다. 이 `.pnpm` 디렉토리 안에는 프로젝트가 필요로 하는 모든 의존성 패키지(직접 의존성 및 하위 의존성)가 각각의 폴더 구조로 정리되어 존재합니다.
+```typescript
+/* pnpm/pnpm repostiory: /fs/hard-link-dir/src/index.ts
+    구조 파악을 위해 일부 생략한 뒤에 주석을 추가하였습니다.
+*/
 
-다음으로 pnpm은 `.pnpm` 디렉토리의 하드 링크된 패키지들을 기반으로 심볼릭 링크를 생성합니다. 이때 가장 중요한 특징은 루트 `node_modules` 디렉토리에는 오직 `package.json`에 명시된 직접 의존성만이 심볼릭 링크로 존재한다는 점입니다. 아래와 같은 `package.json`이 있다고 가정해보겠습니다.
+// 외부에서의 진입점이 되는 함수로
+export function hardLinkDir(src: string, destDirs: string[]): void {
+  if (destDirs.length === 0) return;
+  // Don't try to hard link the source directory to itself
+  destDirs = destDirs.filter((destDir) => path.relative(destDir, src) !== "");
+  _hardLinkDir(src, destDirs, true);
+}
 
-```json
-{
-  "dependencies": {
-    "foo": "1.0.0"
+function _hardLinkDir(src: string, destDirs: string[], isRoot?: boolean) {
+  let files: string[] = [];
+
+  // 1. 원본 디렉토리 처리 (src 디렉토리 파일 목록 읽어오기)
+  try {
+    files = fs.readdirSync(src);
+  } catch (err: unknown) {
+    // ... error handling for ENOENT
+    return;
+  }
+
+  // 2. src 내부 파일 및 디렉토리 순회
+  for (const file of files) {
+    // node_modules는 pnpm이 별도로 처리하므로 넘어감
+    if (file === "node_modules") continue;
+    const srcFile = path.join(src, file);
+
+    // 2-1. 현재 항목이 디렉토리인 경우
+    if (fs.lstatSync(srcFile).isDirectory()) {
+      const destSubdirs = destDirs.map((destDir) => {
+        const destSubdir = path.join(destDir, file);
+        // ... create directory
+        return destSubdir;
+      });
+
+      // 함수 재귀적 실행
+      _hardLinkDir(srcFile, destSubdirs);
+      continue;
+    }
+
+    // 2-2. 현재 항목이 디렉토리가 아니라 파일일 때
+    for (const destDir of destDirs) {
+      const destFile = path.join(destDir, file);
+      try {
+        // linkOrCopyFile 호출
+        linkOrCopyFile(srcFile, destFile);
+      } catch (err: unknown) {
+        // ... error handling for ENOENT
+      }
+    }
+  }
+}
+
+function linkOrCopyFile(srcFile: string, destFile: string): void {
+  try {
+    //
+    linkOrCopy(srcFile, destFile);
+  } catch (err: unknown) {
+    // ... ENOENT 에러 핸들링: 디렉토리 생성 및 재시도
+  }
+}
+
+// 3. 하드 링크 생성 핵심 로직
+function linkOrCopy(srcFile: string, destFile: string): void {
+  try {
+    // 3-1. srcFile을 destFile로 하드링크 시도
+    fs.linkSync(srcFile, destFile);
+  } catch (err: unknown) {
+    // ... 3-2. EXDEV 에러 (Cross-Device Link) 발생 시 다른 파일 시스템이므로 생성 불가
+    // 하드 링크 대신 파일 복사 이용
+    fs.copyFileSync(srcFile, destFile);
   }
 }
 ```
 
-`pnpm install`을 진행하면 `node_modules` 구조는 아래와 같이 구성됩니다.
+이 과정에서 전역 콘텐츠 주소 지정 저장소가 이용됩니다. 아래 도식에서 `source`는 전역 콘텐츠 주소 지정 저장소라고 볼 수 있습니다.
+
+![Hard Link Symlink](/assets/images/250605+pnpm+hardlink+symlink.webp)
+
+하드 링크는 원본 파일과 동일한 inode를 가리키므로, 실제 디스크 공간을 추가로 차지하지 않으면서 파일에 직접 접근하는 것과 같은 효과를 냅니다. 이 `.pnpm` 디렉토리 안에는 프로젝트가 필요로 하는 모든 의존성 패키지(직접 의존성 및 하위 의존성)가 각각의 폴더 구조로 정리된 채로 존재합니다.
+
+다음으로 pnpm은 `.pnpm` 디렉토리의 하드 링크된 패키지들을 기반으로 심볼릭 링크를 생성합니다. 이때 가장 중요한 특징은 루트 `node_modules` 디렉토리에는 오직 `package.json`에 명시된 직접 의존성만이 심볼릭 링크로 존재한다는 점입니다.
+
+이제 예시를 간단한 예시를 통해서 살펴보겠습니다. 아래와 같은 `package.json`이 있다고 가정해보겠습니다.
+
+```json
+{
+  "dependencies": {
+    "foo": "1.0.0" // 루트 package.json에서는 foo만 명시
+  }
+}
+```
+
+`pnpm install`을 진행하면 `node_modules` 구조는 아래와 같이 구성됩니다. `bar`와 `baz`가 `foo`의 의존성이라고도 가정하겠습니다.
 
 ```
 node_modules/
@@ -84,25 +168,119 @@ node_modules/
 │ ├── bar@1.0.0/ # bar 패키지의 실제 파일들 (전역 저장소에서 하드 링크됨)
 │ └── baz@1.0.0/ # baz 패키지의 실제 파일들 (전역 저장소에서 하드 링크됨)
 │
-└── foo/ # -> .pnpm/foo@1.0.0/node_modules/foo (심볼릭 링크)
+├── foo/ # -> .pnpm/foo@1.0.0/node_modules/foo (심볼릭 링크)
+├── bar/ # -> .pnpm/foo@1.0.0/node_modules/bar (심볼릭 링크)
+└── baz/ # -> .pnpm/foo@1.0.0/node_modules/baz (심볼릭 링크)
 ```
 
 앞서 살펴본 하드 링크와 심볼릭 링크에 기반한 구조를 살펴보면 다음과 같은 점을 알 수 있는데요.
 
 - 실제 패키지 파일들은 `.pnpm` 디렉토리 안에 하드 링크로 존재합니다. (전역 저장소와 동일한 파일을 가리킴)
 - foo가 사용하는 의존성(bar, baz)들은 `.pnpm/foo@1.0.0/node_modules/` 안에서만 접근 가능합니다
-- 프로젝트 코드에서는 오직 루트의 `foo`만 접근 가능하므로 팬텀 의존성이 방지됩니다.
+- 프로젝트 코드에서는 오직 루트의 `foo`만 접근 가능하므로 팬텀 의존성이 방지됩니다. (팬텀 의존성은 다음 장에서 살펴보겠습니다.)
 
-pnpm은 패키지를 위와 같이 하드 링크와 심볼릭 의존성 관리가 명확해지고, 실제 파일은 하드 링크로 공유하면서도 각 패키지는 자신의 의존성을 독립적으로 가질 수 있습니다.
+pnpm은 패키지를 위와 같이 관리하기에 실제 파일은 하드 링크로 공유하면서도 각 패키지는 자신의 의존성을 독립적으로 가질 수 있습니다.
 
 ## node-linker=hoisted 옵션
 
-이제 pnpm에서 앞서 언급했던 `node-linker=hoisted` 옵션의 의미를 이해해 볼 수 있습니다. 이 옵션을 활성화하면 pnpm의 엄격한 심볼릭 링크 구조를 포기하고 npm/yarn 스타일의 호이스팅을 사용하게 됩니다. 이는 호환성 문제를 해결할 수 있지만, pnpm의 핵심 장점인 의존성 안정성을 잃게 되는 트레이드오프가 있습니다.
+`node-linker=hoisted` 옵션을 이해하기 전에 pnpm을 간단하게 살펴보았습니다. 이 옵션을 활성화하면, pnpm의 엄격한 심볼릭 링크 구조를 포기하고 npm이나 yarn 스타일의 호이스팅을 사용하게 됩니다. (기본값은 `isolated`입니다.) 호이스팅을 적용한 `node_modules` 구조는 다음과 같습니다.
+
+```
+node_modules/
+├── foo/                  # 직접 의존성 (package.json에 명시됨)
+│                         # -> .pnpm/foo@1.0.0/ 심볼릭 링크
+│
+├── bar/                  # 호이스팅된 하위 의존성 (foo가 의존)
+│                         # -> .pnpm/bar@1.0.0/ 심볼릭 링크
+│
+├── baz/                  # 호이스팅된 하위 의존성 (bar가 의존)
+│                         # -> .pnpm/baz@1.0.0/ 심볼릭 링크
+│
+└── .pnpm/               # 실제 패키지 파일들이 하드 링크로 저장된 공간
+    ├── foo@1.0.0/       # foo 패키지의 실제 파일들 (전역 저장소와 하드 링크 공유)
+    │                    # package.json에는 bar를 의존성으로 명시
+    │
+    ├── bar@1.0.0/       # bar 패키지의 실제 파일들 (전역 저장소와 하드 링크 공유)
+    │                    # package.json에는 baz를 의존성으로 명시
+    │
+    └── baz@1.0.0/       # baz 패키지의 실제 파일들 (전역 저장소와 하드 링크 공유)
+```
+
+`package.json`에서는 분명히 `foo`만 직접 의존성으로 명시하고 있지만, 호이스팅으로 인해 모든 패키지가 루트 `node_modules`에서 접근 가능해지는 결과를 낳게 됩니다.
+
+### 유령 의존성
+
+위 hoisted된 구조에서 `require('bar')`나 `require('baz')`는 분명히 프로젝트 패키지에 명시되어 있지 않지만 이용할 수 있습니다. 이를 두고 우리는 유령 의존성(phantom dependency)라고 부릅니다. npm이나 yarn classic에서는 유령 의존성 문제가 발생했습니다.
+
+추가로, 현재 yarn berry에서는 `.pnp.cjs`를 통해 의존성 목록을 기술하는 PnP 방식을 통해 유령 의존성 문제가 해결된 상태입니다.
+
+### hoisted 옵션의 trade-off
+
+hosited 옵션을 이용하면 pnpm의 엄격한 링크 구조가 주는 장점을 이용할 수 없습니다. 그러나 hoisted 옵션은 호환성 문제에서 도움이 됩니다.
+
+실제로 저 역시 `pnpm build`를 Next.js의 `standalone`옵션을 이용하며, pnpm의 하드 링크-심볼릭 링크로 인한 오류를 겪기도 했습니다.
+
+https://github.com/vercel/next.js/issues/48017
 
 ## 1편 부록: Windows 환경과 Linux BTRFS 환경에서의 링크
+
+### Windows 환경에서의 Junction
+
+```typescript
+/* 
+    pnpm/symlink-dir repo: /src/index.ts
+    일부 생략 및 설명을 위한 주석 추가/변경
+*/
+
+const IS_WINDOWS =
+  process.platform === "win32" ||
+  /^(msys|cygwin)$/.test(<string>process.env.OSTYPE);
+
+// 0. Windows에서는 항상 "junction" 타입 사용 (Vista 이후 심볼릭 링크 지원되나 권한 문제로)
+const symlinkType = IS_WINDOWS ? "junction" : "dir";
+
+// ... Windows/Non-Windows 경로 해결 함수 ...
+
+function symlinkDir(
+  target: string,
+  path: string,
+  opts?: { overwrite?: boolean }
+): Promise<{ reused: boolean; warn?: string }> {
+  // 경로 정규화 및 기본 검증
+  path = betterPathResolve(path);
+  target = betterPathResolve(target);
+
+  if (target === path)
+    throw new Error(`Symlink path is the same as the target path (${target})`);
+
+  target = resolveSrc(target, path);
+
+  return forceSymlink(target, path, opts);
+}
+
+async function forceSymlink(
+  target: string,
+  path: string,
+  opts?: {
+    overwrite?: boolean;
+    renameTried?: boolean;
+  }
+): Promise<{ reused: boolean; warn?: string }> {
+  // ... 심볼릭 링크 생성 및 에러 처리 로직 ...
+  // ENOENT, EEXIST, EISDIR 에러 처리
+}
+```
+
+위 코드는 [pnpm/symlink-dir] (https://github.com/pnpm/symlink-dir/blob/main/src/index.ts) 레포지토리에서 가져온 심볼릭 링크 생성에 쓰이는 코드입니다. 재밌는 점은 Windows 환경에서는 심볼릭 링크가 아니라 Junction이 이용된다는 것입니다.
 
 ## Refereneces
 
 https://toss.tech/article/lightning-talks-package-manager
 
+https://pnpm.io/
+
 https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Client-side_tools/Package_management
+
+https://dev.to/chlorine/how-does-pnpm-work-5mh
+
+https://toss.tech/article/node-modules-and-yarn-berry
