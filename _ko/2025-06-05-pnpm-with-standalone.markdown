@@ -76,7 +76,7 @@ PNPM은 Perforamant NPM의 약어입니다. PNPM이 다른 패키지 매니저�
 
 PNPM으로 설치되는 모든 패키지 파일은 시스템 내의 전역 단일 저장소에 저장되는데요. 이는 콘텐츠 주소 지정 가능한(Content-Addressable) 방식으로 관리됩니다. 파일의 이름이나 위치가 아닌 파일 내용의 해시값을 기반으로 파일이 저장되고 식별된다는 뜻입니다. 아래는 [pnpm.io](pnpm.io)에서 가져온 이미지입니다.
 
-![Content-addressable store](../assets/images/250605+pnpm-content-addressable-store.svg)
+![Content-addressable store](/assets/images/250605+pnpm-content-addressable-store.svg)
 
 npm에서는 의존성 패키지 A를 이용하는 100개의 프로젝트를 위해서 100번 복사되어 이용됩니다. 이는 곧 패키지 A에 변화가 생길 때 npm은 100개 전체에 대해서 클론을 진행해야함을 의미합니다. 하지만 pnpm은 변경된 파일 하나에 대해서만 전역적으로 저장하면 끝입니다.
 
