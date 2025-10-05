@@ -43,3 +43,26 @@ layout: post
    - 바이트 스트림: 물
 
 위 예시에서 파이프는 단순히 '물'이라는 바이트 스트림을 전달하는 역할만 할 뿐, 어떠한 해석이나 변환도 거치지 않음에 주목할 필요가 있습니다. 파이프는 단방향으로 데이터를 전송하고, 해석하고 변환하는 역할은 프로세스가 다룹니다. 정수 필터와 온수 가열 장치처럼요.
+
+## 동시성 - CSP 모델
+
+### 동시성 살펴보기
+
+> concurrency refers to the ability of a system to execute multiple tasks through simultaneous execution or time-sharing (context switching), sharing resources and managing interactions.
+> https://en.wikipedia.org/wiki/Concurrency_(computer_science)
+
+위키피디아에서 정의하는 동시성(concurrency)의 핵심적인 특성을 살펴보겠습니다.
+
+1. 시스템이 여러 작업을 실행할 수 있는 능력
+   - 시스템이 여러 독립적이나 상호 연관된 작업(프로세스, 스레드, 함수 호출 등)을 다룰 수 있음
+2. 동시적인 실행이나 시분할(컨텍스트 스위칭)
+   - 동시적인 실행: 여러 개의 프로세서나 장치에서 여러 작업이 말 그대로 동시에 실행됨 (병렬성과 연관)
+   - 시분할(컨텍스트 스위칭): 단일 CPU 코어에서 각 작업을 아주 짧은 시간 동안 번갈아가며 실행함
+3. 자원 공유
+   - 여러 작업이 메모리, 파일, 네트워크 연결 등의 시스템 자원을 공유함
+4. 상호작용 관리
+   - 자원을 공유하거나 서로 영향을 미치는 작업 사이의 데이터 불일치, 경합, 교착 등의 문제를 조정하고 관리함
+
+### CSP 모델
+
+CSP (Communicating Sequential Processes) 모델은 토니 호어(Tony Hoare)가 개발한 동시성 모델인데요. CSP는 시스템의 상호작용을 수학적으로 분석하기 위한 프로세스 대수(Process Calculi, Process Algebra) 방법론의 일부입니다. 2021-xv6-labs 에서는 [Bell Labs and CSP Threads](https://swtch.com/~rsc/thread/)라는 글을 통해서 호어의 CSP를 간략하게 소개합니다.
