@@ -92,15 +92,147 @@ while message != quit
 이벤트 루프 모델이 I/O-bound 작업에서 효율적인 것처럼, 스레드 기반 모델은 CPU-heavy 작업을 병렬로 처리할 수 있다는 장점이 있다. 이는 곧 서로의 단점을 상쇄함을 의미한다.
 
 따라서 현대 서버는 두 모델을 결합하는 하이브리드 구조를 많이 사용한다. I/O 처리는 이벤트 루프에서 논블로킹 I/O로 처리해 수만 개 요청을 동시에 처리하고,
-CPU-heavy 연은 별도 워커 스레드 풀에서 병렬 처리해 이벤트 루프의 블로킹을 방지하고 연산 성능을 높인다.
+CPU-heavy 연산은 별도 워커 스레드 풀에서 병렬 처리해 이벤트 루프의 블로킹을 방지하고 연산 성능을 높인다.
 
 ## 사례로 보는 비동기 처리
 
-### Spring MVC
+### Spring MVC: 스레드 풀 초과
 
-### FastAPI
+#### 가정
 
-## 사고 실험: 스레드 vs. 이벤트 루프
+1. 전자상거래 플랫폼에서 하루 동안 블랙프라이데이 이벤트가 진행되고 있다.
+2. 동시에 수만 명의 사용자가 상품 검색, 장바구니 조회, 결제 요청을 서버에 보낼 것이다.
+3. 서버는 Spring MVC 기반으로, Thread-per-request 모델과 스레드 풀(크기 200)로 동작하고 있다.
+4. 각 요청 처리 중 일부는 외부 결제 API 호출이나 상품 재고 DB 조회처럼 I/O 지연이 긴 작업을 포함한다.
+5. 서버 인스턴스의 수평적 확장은 고려하지 않는다.
+
+#### 문제 상황
+
+1. 200개의 요청은 스레드 풀에서 즉시 처리할 수 있다.
+2. 나머지 요청은 스레드 풀 대기 큐에 쌓이며, I/O 작업이 길어지면 스레드가 블로킹 상태로 유지된다.
+3. 동시에 새로운 요청이 계속 들어오면서 대기 큐가 포화되고 응답 지연과 타임아웃이 발생한다.
+4. 서버 측 로그에는 스레드 고갈과 타임아웃 에러가 찍혀있다.
+
+#### 어떻게 해결할까?
+
+- 스레드 풀 조정
+
+```yaml
+server:
+  tomcat:
+    max-threads: 500 # 또는 그 이상
+    min-spare-threads: 50
+```
+
+단기적으로 가장 빠르게 이를 해결할 수 있는 것은 스레드 풀의 크기를 키우는 것이다. 블로킹된 스레드 수만큼 여유 스레드를 확보하면 대기 큐에 쌓이는 요청을 줄일 수 있다.
+
+하지만 앞서 살펴보았듯, 스레드 수가 늘어나면 컨텍스트 스위칭 비용과 함께 메모리 측면에서의 오버헤드가 간과할 수 없을 정도로 커질 것이다.
+
+- I/O 작업 비동기 처리
+
+```java
+// PaymentService 내부
+public CompletableFuture<String> callExternalPaymentAPI() {
+    return webClient.get()
+        .uri("/payment")
+        .retrieve()
+        .bodyToMono(String.class) // WebClient의 논블로킹 Mono 반환
+        // Mono를 CompletableFuture로 변환
+        .toFuture();
+}
+
+// Controller
+@GetMapping("/order")
+public CompletableFuture<String> processOrder() {
+    // Non-blocking I/O 작업
+    return paymentService.callExternalPaymentAPI();
+}
+```
+
+Spring MVC가 기본적으로 Thread-Per-Request라는 점을 다시 떠올려보자. 그렇다면 가장 먼저 클라이언트의 HTTP 요청을 실제로 처리하는 워커 스레드, 서블릿 스레드가 존재할 것이다.
+
+서블릿 컨테이너는 내부의 스레드 풀에서 사용 가능한 서블릿 스레드 하나를 꺼내어 클라이언트의 요청에 할당한다. 동기 모델에서는 할당된 서블릿 스레가 길고 긴 외부 I/O 요청이 끝날 때까지 블로킹되어 어떠한 작업도 처리하지 못하는 대기 상태일 것이다.
+
+하지만 위와 같이 비동기 모델을 이용한다면 블로킹되지 않기에 비록 I/O 요청이 끝날 때 응답이 전해지더라도, 그 사이에 다른 작업을 처리할 수 있게 된다.
+
+### FastAPI: 이벤트 루프 블로킹
+
+#### 가정
+
+1. 사용자가 PDF 또는 문서를 업로드하면, 서버가 이를 분석하고 검색 가능한 형태로 제공하는 AI 문서 분석/검색 플랫폼이다.
+2. 단일 FastAPI 이벤트 루프(asyncio 기반)에서 요청을 처리한다.
+3. 동시에 수천~수만 명의 사용자가 문서 업로드, 질의, 검색 요청을 보낸다.
+4. 각 요청 처리에는 다음과 같은 작업이 포함된다.
+   - CPU-heavy 연산: PDF/문서에서 텍스트 추출, 전처리, 벡터화
+   - DB 조회: 실수로 동기 psycopg2 사용
+   - 외부 LLM API 호출: 질문-답변 생성 (invoke 동기 호출)
+
+#### 문제 상황
+
+1. 이벤트 루프는 단일 스레드로 동작하므로, CPU-heavy 작업이 발생하면 다른 요청 처리 지연
+2. 동기 DB 호출(psycopg2)과 동기 LLM API 호출(invoke)으로 인해 이벤트 루프 블로킹
+3. 블로킹 상태에서 다른 요청이 들어오면 응답 지연 및 타임아웃 발생
+4. 서버 로그에는 이벤트 루프 블로킹 경고 및 응답 지연 기록
+
+#### 어떻게 해결할까?
+
+- I/O 요청을 논블로킹으로 전환
+
+```python
+import httpx
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/qa")
+async def query_llm(prompt: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.post("https://llm.api/generate", json={"prompt": prompt})
+        return resp.json()
+```
+
+httpx는 requests 라이브러리의 비동기 버전으로, HTTP 요청을 보낼 때 스레드를 블로킹하지 않고 논블로킹 I/O를 이용한다. 또한, await 키워드는 LLM API 응답을 기다리는 동안 이벤트 루프에 제어권을 돌려준다.
+
+따라서 이벤트 루프는 대기 시간 동안 다른 수많은 요청을 받거나 처리하는 작업을 계속 수행할 수 있으므로, 서버의 동시 처리 능력이 향상된다.
+
+- CPU-heavy 작업을 별도 스레드/프로세스 풀에서 실행
+
+```python
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+executor = ThreadPoolExecutor(max_workers=10)
+
+def process_pdf(file_path: str):
+    # PDF 텍스트 추출, 전처리, 벡터화 등 CPU-heavy 작업
+    return processed_data
+
+@app.post("/upload")
+async def upload_pdf(file_path: str):
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(executor, process_pdf, file_path)
+    return {"processed": result}
+```
+
+ThreadPoolExecutor는 CPU 바운드 작업을 실행하기 위한 별도의 워커 스레드 풀을 생성한다. `loop.run_in_executor()`는 CPU 집약적인 `process_pdf()` 함수를 워커 스레드 풀로 위임한다. 마찬가지로 `await` 키워드를 통해서 작업이 완료되기를 기다린다.
+
+여기에서는 CPU 바운드 작업인 PDF 처리가 백그라운드에서 병렬로 실행되므로 서버의 반응성과 동시 처리 능력이 유지된다.
+
+- DB 조회 비동기화
+
+```python
+import asyncpg
+
+async def fetch_document(doc_id: int):
+    conn = await asyncpg.connect(...)
+    result = await conn.fetchrow("SELECT * FROM documents WHERE id=$1", doc_id)
+    await conn.close()
+    return result
+```
+
+전통적인 DB 커넥터와 달리, 비동기 PostgreSQL 드라이버인 `asyncpg`는 `asyncio`를 지원해 DB 연결과 쿼리 실행 모두 논블로킹 방식으로 진행된다. 따라서 DB와 관련된 I/O 작업이 블로킹되지 않는다.
+
+대신, DB 커넥션 풀을 개발자가 관리해야 한다는 점에 유의해야 한다. 풀 생성 및 해제 로직을 적절히 구현하지 않으면 DB 서버에 과부하가 걸리거나 성능 문제가 발생할 수 있다.
 
 ## 더 나아가기
 
