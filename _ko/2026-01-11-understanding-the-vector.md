@@ -1,5 +1,5 @@
 ---
-title: 벡터 이해하기
+title: 벡터를 바닥부터 뜯어보기
 lang: ko
 layout: post
 ---
